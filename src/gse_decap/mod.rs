@@ -306,7 +306,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         offset += PROTOCOL_LEN;
         if protocol_type <= FIRST_RANGE_PTYPE {
             self.last_label = None;
-            return Err((DecapError::ErrorProtocolType, buffer_len));
+            return Err((DecapError::ErrorProtocolType, pkt_len));
         }
 
         // read label
