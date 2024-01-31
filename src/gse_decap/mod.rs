@@ -304,7 +304,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         let protocol_type =
             u16::from_be_bytes(buffer[offset..offset + PROTOCOL_LEN].try_into().unwrap());
         offset += PROTOCOL_LEN;
-        if protocol_type <= FIRST_RANGE_PTYPE {
+        if protocol_type <= FIRST_RANGE_PTYPE && protocol_type != 0x0081 && protocol_type != 0x0082 {
             self.last_label = None;
             return Err((DecapError::ErrorProtocolType, pkt_len));
         }
@@ -424,7 +424,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         offset += PROTOCOL_LEN;
 
         // check protocol type
-        if protocol_type <= FIRST_RANGE_PTYPE {
+        if protocol_type <= FIRST_RANGE_PTYPE && protocol_type != 0x0081 && protocol_type != 0x0082{
             self.last_label = None;
             return Err((DecapError::ErrorProtocolType, pkt_len));
         }
