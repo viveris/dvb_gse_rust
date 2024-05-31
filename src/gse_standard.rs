@@ -38,6 +38,7 @@ pub const GSE_LEN_MASK: u16 = 0x0FFF;
 // Gse constant for total_length
 pub const TOTAL_LEN_MAX: usize = 0xFFFF;
 
+
 // Gse constant for CRC
 pub const CRC_LEN: usize = 4;
 pub const CRC_INIT: u32 = 0xFFFFFFFF;

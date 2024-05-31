@@ -136,6 +136,7 @@ impl GseDecapMemory for SimpleGseMemory {
                     Ok((context, pdu))
                 } else {
                     Err(DecapMemoryError::UndefinedId)
+
                 }
             }
         }

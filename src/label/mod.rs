@@ -45,8 +45,10 @@ impl Label {
     /// Get label len
     ///
     /// Return the size of the label byte array
+
     #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
+
+ pub fn len(&self) -> usize {
         let label_length: usize = match self {
             Label::SixBytesLabel(_) => LABEL_6_B_LEN,
             Label::ThreeBytesLabel(_) => LABEL_3_B_LEN,
@@ -66,6 +68,7 @@ impl Label {
                 LabelType::ReUse => Label::ReUse,
             };
             label
+
         } else {
             // Misuse of function
             panic!("Wrong size label content");
@@ -88,7 +91,9 @@ impl LabelType {
     /// Get label len
     ///
     /// Return the size of the label byte array
+
     #[allow(clippy::len_without_is_empty)]
+
     pub fn len(&self) -> usize {
         let label_length: usize = match self {
             LabelType::SixBytesLabel => LABEL_6_B_LEN,
