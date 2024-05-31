@@ -1,0 +1,12 @@
+[package]
+name = "dvb_gse_rust"
+version = "0.4.0"
+edition = "2021"
+
+[lib] 
+name = "dvb_gse_rust"
+path = "src/lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
