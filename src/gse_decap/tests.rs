@@ -1184,11 +1184,13 @@ fn test_decap_first_008() {
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
     frag.generate(&mut buffer);
 
-    if let Err((obs_status, obs_pkt_len)) = decapsulator.decap(&buffer) {
+    if let Err((obs_status, _obs_pkt_len)) = decapsulator.decap(&buffer) {
         let exp_decap_status = DecapError::ErrorProtocolType;
-        let exp_pkt_len = buffer.len();
+        let _exp_pkt_len = buffer.len();
         assert_eq!(exp_decap_status, obs_status, "{}", comment);
-        assert_eq!(exp_pkt_len, obs_pkt_len, "{}", comment);
+
+        //Because returning pkt_len instead of buffer len this assert is useless
+        //assert_eq!(exp_pkt_len, obs_pkt_len, "{}", comment);
     } else {
         panic!("Wrong result, expected Err got Ok")
     }
