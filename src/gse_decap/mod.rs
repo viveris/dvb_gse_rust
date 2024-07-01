@@ -68,7 +68,7 @@ impl DecapStatus {
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Enumeration DecapError
 ///
-//// The decapsulation failed, the status return a comment about the error that occured.
+/// The decapsulation failed, the status return a comment about the error that occured.
 pub enum DecapError {
     ErrorSizeBuffer,
     ErrorTotalLength,
@@ -270,7 +270,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             return Err((DecapError::ErrorSizeBuffer, buffer_len));
         }
 
-        let status = match pkt_type {
+        match pkt_type {
             PktType::CompletePkt => {
                 self.decap_complete(buffer, label_type, pkt_len, gse_len)
             }
@@ -283,8 +283,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             PktType::EndFragPkt => {
                 self.decap_end(buffer, pkt_len, gse_len)
             }
-        };
-        status
+        }
     }
 
         
@@ -551,9 +550,9 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
 
         match self.memory.save_frag((decap_context, pdu)) {
             Err(err) => {
-                return Err((DecapError::ErrorMemory(err), pkt_len));
+                Err((DecapError::ErrorMemory(err), pkt_len))
             }
-            Ok(()) => return Ok((DecapStatus::FragmentedPkt, pkt_len)),
+            Ok(()) => Ok((DecapStatus::FragmentedPkt, pkt_len)),
         }
     }
 

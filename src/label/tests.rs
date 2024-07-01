@@ -189,7 +189,7 @@ fn test_new_label_007() {
 
     let obs_label = Label::new(&label_type_in, &bytes_in);
     // Edit original before comparing
-    bytes_in[0] = 0xFF as u8;
+    bytes_in[0] = 0xFF_u8;
 
     assert_eq!(obs_label, exp_label);
 }
@@ -206,7 +206,7 @@ fn test_new_label_008() {
 
     let obs_label = Label::new(&label_type_in, &bytes_in);
     // Edit original before comparing
-    bytes_in[0] = 0xFF as u8;
+    bytes_in[0] = 0xFF_u8;
 
     assert_eq!(obs_label, exp_label);
 }

@@ -117,12 +117,12 @@ pub struct Encapsulator<C: CrcCalculator> {
 impl<C: CrcCalculator> Encapsulator<C> {
     /// Encapsulator constructor
     pub fn new(crc_calculator: C) -> Encapsulator<C> {
-        let encapsulator = Encapsulator {
+        
+        Encapsulator {
             last_label: None,
             crc_calculator,
             re_use_activated: true,
-        };
-        encapsulator
+        }
     }
 
     pub fn set_crc_calculator(&mut self, calculator: C) {
@@ -321,7 +321,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
         }
 
         // write gse fixed header
-        let header = generate_gse_header(&pkt_type, &label.get_type(), gse_len as u16);
+        let header = generate_gse_header(&pkt_type, &label.get_type(), gse_len);
         let mut offset = FIXED_HEADER_LEN;
         buffer[..offset].copy_from_slice(&header.to_be_bytes());
 
@@ -360,7 +360,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
         offset += PROTOCOL_LEN;
 
         // write label
-        buffer[offset..offset + label_len].copy_from_slice(&label.get_bytes());
+        buffer[offset..offset + label_len].copy_from_slice(label.get_bytes());
         offset += label_len;
 
         // write pdu

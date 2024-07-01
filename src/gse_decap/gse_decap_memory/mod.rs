@@ -133,9 +133,9 @@ impl GseDecapMemory for SimpleGseMemory {
             None => Err(DecapMemoryError::UndefinedId),
             Some((context, pdu)) => {
                 if context.frag_id == frag_id {
-                    return Ok((context, pdu));
+                    Ok((context, pdu))
                 } else {
-                    return Err(DecapMemoryError::UndefinedId);
+                    Err(DecapMemoryError::UndefinedId)
                 }
             }
         }

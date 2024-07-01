@@ -73,7 +73,7 @@ impl CrcCalculator for DefaultCrc {
     ) -> u32 {
         let mut crc = crc32(&total_length.to_be_bytes(), CRC_INIT);
         crc = crc32(&protocol_type.to_be_bytes(), crc);
-        crc = crc32(&label, crc);
+        crc = crc32(label, crc);
         crc = crc32(pdu, crc);
 
         crc

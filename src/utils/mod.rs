@@ -15,7 +15,7 @@ mod tests;
 
 pub trait Serialisable<'a> {
     // Serialise a packet in a buffer
-    fn generate(&self, buffer: &mut [u8]) -> ();
+    fn generate(&self, buffer: &mut [u8]);
 
     // Deserialise a packet into a structure structure
     fn parse(buffer: &'a [u8]) -> Result<Self, &'static str>
@@ -44,7 +44,7 @@ impl<'a> GseCompletePacket<'a> {
 }
 
 impl<'a> Serialisable<'a> for GseCompletePacket<'a> {
-    fn generate(&self, buffer: &mut [u8]) -> () {
+    fn generate(&self, buffer: &mut [u8]) {
         let mut offset = 0;
 
         let fixed_header: u16 =
@@ -55,10 +55,10 @@ impl<'a> Serialisable<'a> for GseCompletePacket<'a> {
         buffer[offset..offset + PROTOCOL_LEN].copy_from_slice(&self.protocol_type.to_be_bytes());
         offset += PROTOCOL_LEN;
 
-        buffer[offset..offset + self.label.len()].copy_from_slice(&self.label.get_bytes());
+        buffer[offset..offset + self.label.len()].copy_from_slice(self.label.get_bytes());
         offset += self.label.len();
 
-        buffer[offset..offset + self.pdu.len()].copy_from_slice(&self.pdu);
+        buffer[offset..offset + self.pdu.len()].copy_from_slice(self.pdu);
     }
 
     fn parse(buffer: &[u8]) -> Result<GseCompletePacket, &'static str> {
@@ -123,7 +123,7 @@ impl<'a> GseFirstFragPacket<'a> {
 }
 
 impl<'a> Serialisable<'a> for GseFirstFragPacket<'a> {
-    fn generate(&self, buffer: &mut [u8]) -> () {
+    fn generate(&self, buffer: &mut [u8]) {
         let mut offset = 0;
 
         let fixed_header: u16 =
@@ -140,10 +140,10 @@ impl<'a> Serialisable<'a> for GseFirstFragPacket<'a> {
         buffer[offset..offset + PROTOCOL_LEN].copy_from_slice(&self.protocol_type.to_be_bytes());
         offset += PROTOCOL_LEN;
 
-        buffer[offset..offset + self.label.len()].copy_from_slice(&self.label.get_bytes());
+        buffer[offset..offset + self.label.len()].copy_from_slice(self.label.get_bytes());
         offset += self.label.len();
 
-        buffer[offset..offset + self.pdu.len()].copy_from_slice(&self.pdu);
+        buffer[offset..offset + self.pdu.len()].copy_from_slice(self.pdu);
     }
 
     fn parse(buffer: &[u8]) -> Result<GseFirstFragPacket, &'static str> {
@@ -207,7 +207,7 @@ impl<'a> GseIntermediatePacket<'a> {
 }
 
 impl<'a> Serialisable<'a> for GseIntermediatePacket<'a> {
-    fn generate(&self, buffer: &mut [u8]) -> () {
+    fn generate(&self, buffer: &mut [u8]){
         let mut offset = 0;
 
         let fixed_header: u16 = generate_gse_header(
@@ -221,7 +221,7 @@ impl<'a> Serialisable<'a> for GseIntermediatePacket<'a> {
         buffer[offset..offset + FRAG_ID_LEN].copy_from_slice(&self.frag_id.to_be_bytes());
         offset += FRAG_ID_LEN;
 
-        buffer[offset..offset + self.pdu.len()].copy_from_slice(&self.pdu);
+        buffer[offset..offset + self.pdu.len()].copy_from_slice(self.pdu);
     }
 
     fn parse(buffer: &[u8]) -> Result<GseIntermediatePacket, &'static str> {
@@ -270,7 +270,7 @@ impl<'a> GseEndFragPacket<'a> {
 }
 
 impl<'a> Serialisable<'a> for GseEndFragPacket<'a> {
-    fn generate(&self, buffer: &mut [u8]) -> () {
+    fn generate(&self, buffer: &mut [u8]){
         let mut offset = 0;
 
         let fixed_header: u16 =
@@ -281,7 +281,7 @@ impl<'a> Serialisable<'a> for GseEndFragPacket<'a> {
         buffer[offset..offset + FRAG_ID_LEN].copy_from_slice(&self.frag_id.to_be_bytes());
         offset += FRAG_ID_LEN;
 
-        buffer[offset..offset + self.pdu.len()].copy_from_slice(&self.pdu);
+        buffer[offset..offset + self.pdu.len()].copy_from_slice(self.pdu);
         offset += self.pdu.len();
 
         buffer[offset..offset + CRC_LEN].copy_from_slice(&self.crc.to_be_bytes());

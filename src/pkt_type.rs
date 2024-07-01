@@ -12,6 +12,7 @@
 /// First fragment packet: Start bit = 1, End bit = 0
 /// Intermediate fragment packet: Start bit = 0, End bit = 0
 /// End fragment packet: Start bit = 0, End bit = 1
+#[allow(clippy::enum_variant_names)]
 pub enum PktType {
     CompletePkt,
     FirstFragPkt,

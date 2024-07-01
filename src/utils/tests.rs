@@ -129,7 +129,7 @@ fn test_parse_complete_001() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -152,7 +152,7 @@ fn test_parse_complete_002() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -168,7 +168,7 @@ fn test_parse_complete_003() {
 
     let exp_pkt = GseCompletePacket::new(2, 5000, Label::Broadcast, b"");
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -185,7 +185,7 @@ fn test_parse_complete_004() {
 
     let exp_pkt = GseCompletePacket::new(2 + 26, 4200, Label::ReUse, b"abcdefghijklmnopqrstuvwxyz");
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -202,7 +202,7 @@ fn test_parse_complete_005() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -219,7 +219,7 @@ fn test_parse_complete_006() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -236,7 +236,7 @@ fn test_parse_complete_007() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseCompletePacket::parse(&mut input);
+    let result_pkt = GseCompletePacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -398,7 +398,7 @@ fn test_parse_first_frag_001() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -425,7 +425,7 @@ fn test_parse_first_frag_002() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -443,7 +443,7 @@ fn test_parse_first_frag_003() {
 
     let exp_pkt = GseFirstFragPacket::new(2 + 1 + 2, 125, 125, 5000, Label::Broadcast, b"");
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -469,7 +469,7 @@ fn test_parse_first_frag_004() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -488,7 +488,7 @@ fn test_parse_first_frag_005() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -507,7 +507,7 @@ fn test_parse_first_frag_006() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -526,7 +526,7 @@ fn test_parse_first_frag_007() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseFirstFragPacket::parse(&mut input);
+    let result_pkt = GseFirstFragPacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -585,7 +585,7 @@ fn test_parse_intermediate_001() {
 
     let exp_pkt = GseIntermediatePacket::new(1, 255, b"");
 
-    let result_pkt = GseIntermediatePacket::parse(&mut input);
+    let result_pkt = GseIntermediatePacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -601,7 +601,7 @@ fn test_parse_intermediate_002() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseIntermediatePacket::parse(&mut input);
+    let result_pkt = GseIntermediatePacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -617,7 +617,7 @@ fn test_parse_intermediate_003() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseIntermediatePacket::parse(&mut input);
+    let result_pkt = GseIntermediatePacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -633,7 +633,7 @@ fn test_parse_intermediate_004() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseIntermediatePacket::parse(&mut input);
+    let result_pkt = GseIntermediatePacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -696,7 +696,7 @@ fn test_parse_end_frag_001() {
 
     let exp_pkt = GseEndFragPacket::new(5, 255, b"", 570);
 
-    let result_pkt = GseEndFragPacket::parse(&mut input);
+    let result_pkt = GseEndFragPacket::parse(&input);
     match result_pkt {
         Ok(obs_pkt) => assert_eq!(exp_pkt, obs_pkt),
         Err(_) => panic!(),
@@ -713,7 +713,7 @@ fn test_parse_end_frag_002() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseEndFragPacket::parse(&mut input);
+    let result_pkt = GseEndFragPacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -730,7 +730,7 @@ fn test_parse_end_frag_003() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseEndFragPacket::parse(&mut input);
+    let result_pkt = GseEndFragPacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
@@ -747,7 +747,7 @@ fn test_parse_end_frag_004() {
 
     let exp_err = "Wrong PktType";
 
-    let result_pkt = GseEndFragPacket::parse(&mut input);
+    let result_pkt = GseEndFragPacket::parse(&input);
     match result_pkt {
         Ok(_) => panic!(),
         Err(obs_err) => assert_eq!(exp_err, obs_err),
