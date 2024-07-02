@@ -7,20 +7,26 @@
 //! It supports complete packet, first fragment packet, intermediate fragment packet, end fragment packet and padding.
 //! It also allows you to manage any type of label including the re-use label.
 
-use std::fmt::Debug;
-
+pub use self::gse_decap_memory::{DecapMemoryError, GseDecapMemory, SimpleGseMemory};
 use crate::crc::CrcCalculator;
-use crate::gse_standard::{    COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_PKT, SECOND_RANGE_PTYPE, FIXED_HEADER_LEN, FRAG_ID_LEN, GSE_LEN_MASK, INTERMEDIATE_PKT, INTERNAL_SIGNALING_PROTOCOL_ID, LABEL_3_B, LABEL_6_B, LABEL_BROADCAST, LABEL_REUSE, LABEL_TYPE_MASK, NCR_PROTOCOL_ID, PROTOCOL_LEN, START_END_MASK, TOTAL_LENGTH_LEN};
+use crate::gse_standard::{
+    COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_PKT, FIXED_HEADER_LEN, FRAG_ID_LEN, GSE_LEN_MASK,
+    H_LEN_MASK, INTERMEDIATE_PKT, LABEL_3_B, LABEL_3_B_LEN, LABEL_6_B, LABEL_6_B_LEN,
+    LABEL_BROADCAST, LABEL_REUSE, LABEL_TYPE_MASK, PROTOCOL_LEN, SECOND_RANGE_PTYPE,
+    START_END_MASK, TOTAL_LENGTH_LEN,
+};
+use crate::header_extension::{
+    optionnal_extension_data_size_from_hlen, Extension, ExtensionData, MandatoryHeaderExt,
+    MandatoryHeaderExtensionManager,
+};
 use crate::label::{Label, LabelType};
 use crate::pkt_type::PktType;
-
-pub use self::gse_decap_memory::{DecapMemoryError, GseDecapMemory, SimpleGseMemory};
 
 pub mod gse_decap_memory;
 #[cfg(test)]
 mod tests;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Structure PayloadMetadata
 ///
 /// *   Pdu length describe the length of the pdu store in a buffer
@@ -30,26 +36,33 @@ pub struct DecapMetadata {
     pub pdu_len: usize,
     pub protocol_type: u16,
     pub label: Label,
+    pub extensions: Vec<Extension>,
 }
 
 impl DecapMetadata {
-    pub fn new(pdu_len: usize, protocol_type: u16, label: Label) -> Self {
+    pub fn new(
+        pdu_len: usize,
+        protocol_type: u16,
+        label: Label,
+        extensions: Vec<Extension>,
+    ) -> Self {
         Self {
             pdu_len,
             protocol_type,
             label,
+            extensions,
         }
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Enumeration DecapStatus : Define the status of the decapsulation.
 ///
 /// If a pdu is completely decapsulated, the status return a by payload the option completed packet.
 /// Else, if the decapsulation failed, the status return a comment about the error that occured.
 pub enum DecapStatus {
     CompletedPkt(Box<[u8]>, DecapMetadata),
-    FragmentedPkt,
+    FragmentedPkt(DecapMetadata),
     Padding,
 }
 
@@ -57,17 +70,16 @@ impl DecapStatus {
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::CompletedPkt(_, _) => "Fully decapsulated packet",
-            Self::FragmentedPkt => "Partially decapsulated packet",
+            Self::FragmentedPkt(_) => "Partially decapsulated packet",
             Self::Padding => "Padding detected",
         }
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 /// Enumeration DecapError
 ///
 /// The decapsulation failed, the status return a comment about the error that occured.
-
 pub enum DecapError {
     ErrorSizeBuffer,
     ErrorTotalLength,
@@ -80,6 +92,7 @@ pub enum DecapError {
     ErrorNoLabelSaved,
     ErrorLabelBroadcastSaved,
     ErrorLabelReUseSaved,
+    ErrorUnkownMandatoryHeader,
 }
 
 impl DecapError {
@@ -100,7 +113,13 @@ impl DecapError {
             Self::ErrorLabelReUseSaved => {
                 "A Reused label is used, but the last label saved is a label re use"
             }
-            _ => "Pdu buffer is smaller than pdu received",
+            Self::ErrorUnkownMandatoryHeader => {
+                "Header contains an unknow Mandatory Header. Can not proceed the packet"
+            }
+            Self::ErrorTotalLength => {
+                "Total length in header doesn't correspond to the total length of the defragmented packet"
+            }
+            Self::ErrorGseLength => "Pdu buffer is smaller than pdu received",
         }
     }
 }
@@ -120,6 +139,7 @@ pub struct DecapContext {
     pub total_len: u16,
     pub pdu_len: u16,
     pub from_label_reuse: bool,
+    pub extensions_header: Vec<Extension>,
 }
 
 impl DecapContext {
@@ -130,6 +150,7 @@ impl DecapContext {
         total_len: u16,
         pdu_len: u16,
         from_label_reuse: bool,
+        extensions_header: Vec<Extension>,
     ) -> Self {
         Self {
             label,
@@ -138,6 +159,7 @@ impl DecapContext {
             total_len,
             pdu_len,
             from_label_reuse,
+            extensions_header,
         }
     }
 }
@@ -149,18 +171,27 @@ impl DecapContext {
 /// The memory has to implement the trait GseDecapMemory. It is required to use the decap function.
 ///
 /// The last label has to be reset by the user at the begining of each new base band frame
-pub struct Decapsulator<T: GseDecapMemory, C: CrcCalculator> {
+pub struct Decapsulator<T: GseDecapMemory, C: CrcCalculator, MHEM: MandatoryHeaderExtensionManager>
+{
     pub memory: T,
     crc_calculator: C,
     last_label: Option<Label>,
+    mandatory_extension_manager: MHEM,
 }
 
-impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
-    pub fn new(memory: T, crc_calculator: C) -> Decapsulator<T, C> {
-        let decapsulator: Decapsulator<T, C> = Decapsulator {
+impl<T: GseDecapMemory, C: CrcCalculator, MHEM: MandatoryHeaderExtensionManager>
+    Decapsulator<T, C, MHEM>
+{
+    pub fn new(
+        memory: T,
+        crc_calculator: C,
+        mandatory_extension_manager: MHEM,
+    ) -> Decapsulator<T, C, MHEM> {
+        let decapsulator: Decapsulator<T, C, MHEM> = Decapsulator {
             last_label: None,
             memory,
             crc_calculator,
+            mandatory_extension_manager,
         };
         decapsulator
     }
@@ -201,7 +232,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
     /// use dvb_gse_rust::gse_decap::{Decapsulator, DecapMetadata, DecapStatus, SimpleGseMemory, GseDecapMemory};
     /// use dvb_gse_rust::label::Label;
     /// use dvb_gse_rust::crc::DefaultCrc;
-    ///
+    /// use dvb_gse_rust::header_extension::SimpleMandatoryExtensionHeaderManager;
     /// // The packet is written in buffer, the length of the packet is inform inside
     /// let mut buffer = [0; 1000];
     ///
@@ -221,7 +252,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
     /// memory.provision_storage(storage).unwrap();
     ///
     /// // Creation of the decapsulator with his crc calculation trait and his memory
-    /// let mut decapsulator = Decapsulator::new(memory, DefaultCrc {});
+    /// let mut decapsulator = Decapsulator::new(memory, DefaultCrc {}, SimpleMandatoryExtensionHeaderManager {});
     ///
     /// // Next, the gse packet can be decapsulated
     /// let (decap_status, pkt_len) = match decapsulator.decap(&buffer) { Ok((decap_status, pkt_len)) => (decap_status, pkt_len), Err(_) => unreachable!() };
@@ -233,6 +264,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
     ///        pdu_len: 26,
     ///        label: Label::Broadcast,
     ///        protocol_type: 0xFFFF,
+    /// extensions: vec![],
     ///    },
     /// );
     /// let exp_pkt_len = 30;
@@ -262,7 +294,6 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
 
         let pkt_len = gse_len + FIXED_HEADER_LEN;
 
-
         // check buffer size
         if buffer_len < pkt_len {
             self.last_label = None;
@@ -271,19 +302,10 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         }
 
         match pkt_type {
-
-            PktType::CompletePkt => {
-                self.decap_complete(buffer, label_type, pkt_len, gse_len)
-            }
-            PktType::FirstFragPkt => {
-                self.decap_first(buffer, label_type, pkt_len, gse_len)
-            }
-            PktType::IntermediateFragPkt => {
-                self.decap_intermediate(buffer, pkt_len, gse_len)
-            }
-            PktType::EndFragPkt => {
-                self.decap_end(buffer, pkt_len, gse_len)
-            }
+            PktType::CompletePkt => self.decap_complete(buffer, label_type, pkt_len, gse_len),
+            PktType::FirstFragPkt => self.decap_first(buffer, label_type, pkt_len, gse_len),
+            PktType::IntermediateFragPkt => self.decap_intermediate(buffer, pkt_len, gse_len),
+            PktType::EndFragPkt => self.decap_end(buffer, pkt_len, gse_len),
         }
     }
 
@@ -296,18 +318,22 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         gse_len: usize,
     ) -> Result<(DecapStatus, usize), (DecapError, usize)> {
         let mut offset = FIXED_HEADER_LEN;
-        let buffer_len = buffer.len();
+        let buffer_len: usize = buffer.len();
         let label_len = label_type.len();
+        let mut extensions: Vec<Extension> = vec![];
+        let mut is_there_header_ext = false;
 
-        // read protocol type
-        let protocol_type =
+        let mut header_ext_len: usize = 0;
+
+        // read protocol_type
+        let mut protocol_type =
             u16::from_be_bytes(buffer[offset..offset + PROTOCOL_LEN].try_into().unwrap());
         offset += PROTOCOL_LEN;
-
         if protocol_type < SECOND_RANGE_PTYPE {
-            self.last_label = None;
-            return Err((DecapError::ErrorProtocolType, buffer_len));
-
+            // there is atleast one header extension
+            // current protocol type is in fact first header extension id
+            // iterate over all header extensions
+            is_there_header_ext = true;
         }
 
         // read label
@@ -320,6 +346,30 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             return Err((DecapError::ErrorInvalidLabel, pkt_len));
         }
 
+        if is_there_header_ext {
+            match iterate_over_extension_header(
+                &buffer[offset..],
+                &self.mandatory_extension_manager,
+                protocol_type,
+            ) {
+                Err(e) => match e {
+                    ExtensionHeaderError::BufferTooSmall => {
+                        self.last_label = None;
+                        return Err((DecapError::ErrorSizePduBuffer, buffer_len));
+                    }
+                    ExtensionHeaderError::UnknownMandatoryHeader => {
+                        self.last_label = None;
+                        return Err((DecapError::ErrorUnkownMandatoryHeader, pkt_len));
+                    }
+                },
+                Ok(r) => {
+                    offset += r.header_ext_len;
+                    protocol_type = r.protocol_type;
+                    header_ext_len = r.header_ext_len;
+                    extensions = r.extensions;
+                }
+            };
+        };
         // get pdu buffer
         let mut pdu_buffer = match self.memory.new_pdu() {
             Ok(pdu) => pdu,
@@ -335,16 +385,17 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             self.last_label = None;
             self.memory.provision_storage(pdu_buffer).unwrap();
             // len_pkt = buffer_len because the label type or the gse length is wrong so the start of the next packet is undefined
+            // the entire buffer can not be proceed and should be dropped
             return Err((DecapError::ErrorGseLength, buffer_len));
         }
 
         // check buffer size
-        if pdu_buffer_len + label_len + PROTOCOL_LEN < gse_len {
+        if pdu_buffer_len + label_len + header_ext_len + PROTOCOL_LEN < gse_len {
             self.last_label = None;
             self.memory.provision_storage(pdu_buffer).unwrap();
             return Err((DecapError::ErrorSizePduBuffer, pkt_len));
         }
-        let calculed_pdu_len = gse_len - label_len - PROTOCOL_LEN;
+        let calculed_pdu_len = gse_len - label_len - header_ext_len - PROTOCOL_LEN;
 
         // read pdu
         pdu_buffer[..calculed_pdu_len].copy_from_slice(&buffer[offset..offset + calculed_pdu_len]);
@@ -384,42 +435,76 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             pdu_len: calculed_pdu_len,
             label: current_label,
             protocol_type,
+            extensions,
         };
         Ok((DecapStatus::CompletedPkt(pdu_buffer, metadata), pkt_len))
     }
+
     pub fn get_label_or_frag_id(
         &self,
         buffer: &[u8],
-    ) -> Result<LabelorFragId, ErrorGetLabelorFragId> {
-        if buffer.len() < 2 {
-            return Err(ErrorGetLabelorFragId::ErrSizeBuffer);
+    ) -> Result<LabelorFragId, GetLabelorFragIdError> {
+        if buffer.len() < FIXED_HEADER_LEN {
+            return Err(GetLabelorFragIdError::ErrSizeBuffer);
         }
 
         let result = read_gse_header(u16::from_be_bytes([buffer[0], buffer[1]]));
         let header = match result {
             Some(r) => r,
-            None => return Err(ErrorGetLabelorFragId::ErrHeaderRead),
+            None => return Err(GetLabelorFragIdError::ErrHeaderRead),
         };
+        // intermediate or last fragment -> no header extension
+        if (header.1 == PktType::IntermediateFragPkt) || (header.1 == PktType::EndFragPkt) {
+            // return fragid
+            if buffer.len() < FIXED_HEADER_LEN + PROTOCOL_LEN + header.2.len() {
+                return Err(GetLabelorFragIdError::ErrSizeBuffer);
+            }
 
-        match header.1 {
-            PktType::CompletePkt => match header.2 {
-                LabelType::ReUse => {
-                    if let Some(label) = self.last_label {
-                        return Ok(LabelorFragId::Lbl(label));
-                    } else {
-                        return Err(ErrorGetLabelorFragId::ErrLabelReuse);
-                    }
-                }
-                LabelType::Broadcast => {
-                    return Ok(LabelorFragId::Lbl(Label::Broadcast));
-                }
-                _ => Ok(LabelorFragId::Lbl(Label::new(
-                    &header.2,
-                    &buffer[FIXED_HEADER_LEN + PROTOCOL_LEN
-                        ..FIXED_HEADER_LEN + PROTOCOL_LEN + header.2.len()],
-                ))),
-            },
-            _ => Ok(LabelorFragId::FragId(buffer[FIXED_HEADER_LEN])),
+            return Ok(LabelorFragId::FragId(u8::from_be(buffer[FIXED_HEADER_LEN])));
+        }
+        if header.2 == LabelType::Broadcast {
+            return Ok(LabelorFragId::Lbl(Label::Broadcast));
+        }
+
+        // first fragment or complete packet but no data for label
+        if header.2 == LabelType::ReUse {
+            return Err(GetLabelorFragIdError::ErrLabelReuse);
+        }
+
+        // handle potential header extension if first frag or complete pck
+        let mut offset: usize = FIXED_HEADER_LEN;
+
+        if header.1 == PktType::FirstFragPkt {
+            // return fragid
+            offset += TOTAL_LENGTH_LEN + FRAG_ID_LEN;
+        }
+        offset += PROTOCOL_LEN;
+        if buffer.len() < offset + header.2.len() {
+            return Err(GetLabelorFragIdError::ErrSizeBuffer);
+        } // packet can not contain the promised header
+
+        if (header.1 == PktType::IntermediateFragPkt) || (header.1 == PktType::EndFragPkt) {
+            // return fragid
+            if buffer.len() < FIXED_HEADER_LEN + PROTOCOL_LEN + header.2.len() {
+                return Err(GetLabelorFragIdError::ErrSizeBuffer);
+            }
+
+            return Ok(LabelorFragId::Lbl(Label::new(
+                &header.2,
+                &buffer[FIXED_HEADER_LEN + PROTOCOL_LEN
+                    ..FIXED_HEADER_LEN + PROTOCOL_LEN + header.2.len()],
+            )));
+        }
+        match header.2 {
+            LabelType::ThreeBytesLabel => Ok(LabelorFragId::Lbl(Label::new(
+                &LabelType::ThreeBytesLabel,
+                &buffer[offset..offset + LABEL_3_B_LEN],
+            ))),
+            LabelType::SixBytesLabel => Ok(LabelorFragId::Lbl(Label::new(
+                &LabelType::SixBytesLabel,
+                &buffer[offset..offset + LABEL_6_B_LEN],
+            ))),
+            _ => panic!("unreachable"),
         }
     }
 
@@ -431,12 +516,12 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         pkt_len: usize,
         gse_len: usize,
     ) -> Result<(DecapStatus, usize), (DecapError, usize)> {
+        let mut header_ext_len: usize = 0;
         let mut offset = FIXED_HEADER_LEN;
         let buffer_len = buffer.len();
         let label_len = label_type.len();
-        let calculed_pdu_len =
-            gse_len - (FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + label_len);
-
+        let mut extensions: Vec<Extension> = vec![];
+        let mut is_there_extension_header = false;
         // read frag id
         let frag_id = u8::from_be_bytes(buffer[offset..offset + FRAG_ID_LEN].try_into().unwrap());
         offset += FRAG_ID_LEN;
@@ -449,33 +534,21 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         );
         offset += TOTAL_LENGTH_LEN;
 
-        // check the total len
-        if total_len <= calculed_pdu_len as u16 {
-            self.last_label = None;
-            return Err((DecapError::ErrorTotalLength, buffer_len));
-        }
-
-        // read protocol type
-        let protocol_type =
-            u16::from_be_bytes(buffer[offset..offset + PROTOCOL_LEN].try_into().unwrap());
-        offset += PROTOCOL_LEN;
-
-        // check protocol type
-
-        if protocol_type < SECOND_RANGE_PTYPE 
-            && protocol_type != NCR_PROTOCOL_ID 
-            && protocol_type != INTERNAL_SIGNALING_PROTOCOL_ID 
-        {
-            self.last_label = None;
-            return Err((DecapError::ErrorProtocolType, pkt_len));
-
-        }
-
         // check buffer size
         if gse_len < label_len + PROTOCOL_LEN + FRAG_ID_LEN + TOTAL_LENGTH_LEN {
             // len_pkt = buffer_len because the label type or the gse length is wrong so the start of the next packet is undefined
             self.last_label = None;
             return Err((DecapError::ErrorGseLength, buffer_len));
+        }
+        // read protocol_type
+        let mut protocol_type =
+            u16::from_be_bytes(buffer[offset..offset + PROTOCOL_LEN].try_into().unwrap());
+        offset += PROTOCOL_LEN;
+        if protocol_type < SECOND_RANGE_PTYPE {
+            // there is atleast one header extension
+            // current protocol type is in fact first header extension id
+            // iterate over all header extensions
+            is_there_extension_header = true;
         }
 
         // read label
@@ -517,6 +590,38 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             }
         };
 
+        if is_there_extension_header {
+            match iterate_over_extension_header(
+                &buffer[offset..],
+                &self.mandatory_extension_manager,
+                protocol_type,
+            ) {
+                Err(e) => match e {
+                    ExtensionHeaderError::BufferTooSmall => {
+                        self.last_label = None;
+                        return Err((DecapError::ErrorSizePduBuffer, buffer_len));
+                    }
+                    ExtensionHeaderError::UnknownMandatoryHeader => {
+                        self.last_label = None;
+                        return Err((DecapError::ErrorUnkownMandatoryHeader, pkt_len));
+                    }
+                },
+                Ok(r) => {
+                    offset += r.header_ext_len;
+                    protocol_type = r.protocol_type;
+                    header_ext_len = r.header_ext_len;
+                    extensions = r.extensions;
+                }
+            };
+        };
+        let calculed_pdu_len =
+            gse_len - (FRAG_ID_LEN + TOTAL_LENGTH_LEN + label_len + header_ext_len + PROTOCOL_LEN);
+        // check the total len
+        if total_len <= calculed_pdu_len as u16 {
+            self.last_label = None;
+            return Err((DecapError::ErrorTotalLength, buffer_len));
+        }
+
         // create a new decap context
         let decap_context = DecapContext::new(
             current_label,
@@ -525,6 +630,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             total_len,
             calculed_pdu_len as u16,
             label_type == LabelType::ReUse,
+            extensions.clone(),
         );
 
         // Take a new frag from memory
@@ -547,9 +653,15 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             return Err((DecapError::ErrorSizePduBuffer, pkt_len));
         }
 
+        let metadata = DecapMetadata {
+            pdu_len: 0,
+            protocol_type: decap_context.protocol_type,
+            label: decap_context.label,
+            extensions,
+        };
         // save state
         match self.memory.save_frag((decap_context, pdu_buffer)) {
-            Ok(_) => Ok((DecapStatus::FragmentedPkt, pkt_len)),
+            Ok(_) => Ok((DecapStatus::FragmentedPkt(metadata), pkt_len)),
             Err(err) => Err((DecapError::ErrorMemory(err), pkt_len)),
         }
     }
@@ -591,130 +703,16 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         // save state
         decap_context.pdu_len += calculed_pdu_len as u16;
 
+        let metadata = DecapMetadata {
+            pdu_len: 0,
+            protocol_type: decap_context.protocol_type,
+            label: decap_context.label,
+            extensions: decap_context.extensions_header.clone(),
+        };
+
         match self.memory.save_frag((decap_context, pdu)) {
-            Err(err) => {
-
-                Err((DecapError::ErrorMemory(err), pkt_len))
-            }
-            Ok(()) => Ok((DecapStatus::FragmentedPkt, pkt_len)),
-
-
-        }
-    }
-
-    #[inline(always)]
-    pub fn get_extensions(
-        &mut self,
-        buffer: &[u8],
-    ) -> Result<Option<Vec<Extension>>, ExtensionError> {
-        let mut extensions: Vec<Extension> = Vec::new();
-        let buffer_len = buffer.len();
-
-        if buffer_len < FIXED_HEADER_LEN {
-            // If buffer is too small to even contain the fixed header length
-            return Err(ExtensionError::ErrNotGSEPacket);
-        }
-
-        // Read GSE header
-        let (gse_len, pkt_type, _) = match read_gse_header(u16::from_be_bytes(
-            buffer[..FIXED_HEADER_LEN].try_into().unwrap(),
-        )) {
-            Some(header) => header,
-            None => return Err(ExtensionError::ErrReadingPacket),
-        };
-
-        let pkt_len = gse_len + FIXED_HEADER_LEN;
-
-        // Check if buffer is large enough to contain the whole packet
-        if buffer_len < pkt_len {
-            return Err(ExtensionError::ErrBufferTooSmall);
-        }
-        let mut offset = FIXED_HEADER_LEN;
-        // Process based on packet type
-        match pkt_type {
-            PktType::CompletePkt => {}
-            PktType::FirstFragPkt => offset += FRAG_ID_LEN,
-            _ => return Ok(None), // Only first or complete packet contain header extensions
-        };
-
-        // Iterate over all header extensions
-        loop {
-            // Read protocol type
-            let protocol_type =
-                u16::from_be_bytes(buffer[offset..offset + PROTOCOL_LEN].try_into().unwrap());
-
-            offset += PROTOCOL_LEN;
-
-            if protocol_type >= FIRST_RANGE_PTYPE {
-                // If protocol type is not a header extension, break the loop
-                break;
-            }
-
-            // Determine header extension length
-            let header_ext_data_len = (protocol_type >> 8) & 0b111;
-            if header_ext_data_len > 6 {
-                panic!("Unreachable, header ext with length > 6");
-            }
-
-            let id_ext = protocol_type;
-
-            //TODO let ext_data_len = (header_ext_data_len * 2) as usize;
-
-            // Read extension data based on its length
-            let ext_data = match header_ext_data_len {
-                0 => Extension {
-                    id: id_ext,
-                    data: None,
-                },
-                1 => Extension {
-                    id: id_ext,
-                    data: None,
-                },
-                2 => {
-                    let mut data = [0; 2];
-                    data.copy_from_slice(&buffer[offset..offset + 2]);
-                    offset += 2;
-                    Extension {
-                        id: id_ext,
-                        data: Some(ExtensionData::Data2(data)),
-                    }
-                }
-                3 => {
-                    let mut data = [0; 4];
-                    data.copy_from_slice(&buffer[offset..offset + 4]);
-                    offset += 4;
-                    Extension {
-                        id: id_ext,
-                        data: Some(ExtensionData::Data4(data)),
-                    }
-                }
-                4 => {
-                    let mut data = [0; 6];
-                    data.copy_from_slice(&buffer[offset..offset + 6]);
-                    offset += 6;
-                    Extension {
-                        id: id_ext,
-                        data: Some(ExtensionData::Data6(data)),
-                    }
-                }
-                5 => {
-                    let mut data = [0; 8];
-                    data.copy_from_slice(&buffer[offset..offset + 8]);
-                    offset += 8;
-                    Extension {
-                        id: id_ext,
-                        data: Some(ExtensionData::Data8(data)),
-                    }
-                }
-                _ => panic!("Unreachable, H-LEN >= 6, not a valid extension header"),
-            };
-            extensions.push(ext_data);
-        }
-
-        if extensions.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(extensions))
+            Err(err) => Err((DecapError::ErrorMemory(err), pkt_len)),
+            Ok(()) => Ok((DecapStatus::FragmentedPkt(metadata), pkt_len)),
         }
     }
 
@@ -761,6 +759,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
             pdu_len,
             protocol_type: decap_context.protocol_type,
             label: decap_context.label,
+            extensions: decap_context.extensions_header,
         };
 
         let (first_label_len, crc_label): (usize, &[u8]) = if decap_context.from_label_reuse {
@@ -792,67 +791,8 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
 
         Ok((DecapStatus::CompletedPkt(pdu, metadata), pkt_len))
     }
-
-    pub fn get_label_or_frag_id(&self, buffer: &[u8]) -> Result<LabelorFragId, ErrorGetLabelorFragId> {
-        if buffer.len() < 2 {
-            return Err(ErrorGetLabelorFragId::ErrSizeBuffer);
-        }
-
-        let result = read_gse_header(u16::from_be_bytes([buffer[0], buffer[1]]));
-        let header = match result {
-            Some(r) => r,
-            None => return Err(ErrorGetLabelorFragId::ErrHeaderRead),
-        };
-
-        match header.1 {
-            PktType::CompletePkt => {
-                match header.2 {
-                    LabelType::ReUse => {
-                        if let Some(label) = self.last_label {
-                            return Ok(LabelorFragId::Lbl(label));
-                        } else {
-                            return Err(ErrorGetLabelorFragId::ErrLabelReuse);
-                        }
-                    }
-                    LabelType::Broadcast => {
-                        return Ok(LabelorFragId::Lbl(Label::Broadcast));
-                    }
-                    _ => Ok(LabelorFragId::Lbl(Label::new(
-                        &header.2,
-                        &buffer
-                            [FIXED_HEADER_LEN + PROTOCOL_LEN..FIXED_HEADER_LEN + PROTOCOL_LEN + header.2.len()],
-                    ))),
-                }
-            }
-            _ => Ok(LabelorFragId::FragId(buffer[FIXED_HEADER_LEN])),
-        }
-    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum LabelorFragId {
-    Lbl(Label),
-    FragId(u8),
-}
-
-#[derive(Debug,PartialEq, Eq)]
-pub enum ErrorGetLabelorFragId {
-    ErrLabelReuse,
-    ErrLabelBroadcast,
-    ErrSizeBuffer,
-    ErrHeaderRead
-}
-
-impl ErrorGetLabelorFragId {
-pub fn to_str(&self) -> &'static str {
-    match self {
-        Self::ErrLabelReuse => "Last Label can not be retrieved",
-        Self::ErrLabelBroadcast => "Packet Label type is Broadcast",
-        Self::ErrSizeBuffer => "Packet too small for gse packet",
-        Self::ErrHeaderRead => "Can not read header",
-    }
-}
-}
 /// GSE reading of 16b header
 ///
 /// Return the tuple (gse_len, pktType, Label_type) based on the input buffer
@@ -892,20 +832,155 @@ pub enum LabelorFragId {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum ErrorGetLabelorFragId {
+pub enum GetLabelorFragIdError {
     ErrLabelReuse,
-    ErrLabelBroadcast,
     ErrSizeBuffer,
     ErrHeaderRead,
+    ErrorUnkownMandatoryHeader,
 }
 
-impl ErrorGetLabelorFragId {
+impl GetLabelorFragIdError {
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::ErrLabelReuse => "Last Label can not be retrieved",
-            Self::ErrLabelBroadcast => "Packet Label type is Broadcast",
             Self::ErrSizeBuffer => "Packet too small for gse packet",
             Self::ErrHeaderRead => "Can not read header",
+            Self::ErrorUnkownMandatoryHeader => {
+                "Header contains unknown Mandatory Header Extension "
+            }
         }
     }
+}
+
+#[derive(PartialEq, Eq, Clone)]
+/// Enumeration DecapError
+///
+/// The decapsulation failed, the status return a comment about the error that occured.
+pub enum ExtensionHeaderError {
+    UnknownMandatoryHeader,
+    BufferTooSmall,
+}
+
+impl ExtensionHeaderError {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::UnknownMandatoryHeader => "Header contains unknown Mandatory Header Extension ",
+            Self::BufferTooSmall => "Buffer too small to contain the promised header extension(s)",
+        }
+    }
+}
+
+pub struct IterateOverExtensionHeaderStatus {
+    extensions: Vec<Extension>,
+    protocol_type: u16,
+    header_ext_len: usize, //header ext len + protocol type
+}
+
+#[inline(always)]
+/// GSE reading of the header extension
+///
+/// Return the extension read, the total size of extension (data + id) and the protocol type based on the input buffer
+pub fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
+    pdu: &[u8],
+    mandatory_extension_header_manager: &MHEM,
+    first_ext_id: u16,
+) -> Result<IterateOverExtensionHeaderStatus, ExtensionHeaderError> {
+    let mut offset: usize = 0;
+    let mut extensions: Vec<Extension> = vec![];
+    let pdu_len = pdu.len();
+
+    if pdu_len < PROTOCOL_LEN {
+        return Err(ExtensionHeaderError::BufferTooSmall);
+    }
+    // read protocol_type
+    //let mut protocol_type: u16 = u16::from_be_bytes(pdu[0..PROTOCOL_LEN].try_into().unwrap());
+    //offset += PROTOCOL_LEN;
+    let mut protocol_type: u16 = first_ext_id;
+
+    while protocol_type < SECOND_RANGE_PTYPE {
+        // enter in at least one
+        // this is an header extension
+        // reading the size of the extension
+        let h_len: u8 = ((protocol_type & H_LEN_MASK) >> 8).try_into().unwrap();
+
+        if h_len == 0 {
+            // this is a mandatory header extension
+            // if we don't know this extension, we must drop the packet
+            match mandatory_extension_header_manager.is_mandatory_header_id_known(protocol_type) {
+                // unknown -> drop the packet
+                MandatoryHeaderExt::Unknown => {
+                    return Err(ExtensionHeaderError::UnknownMandatoryHeader);
+                }
+
+                MandatoryHeaderExt::Final(size_data) => {
+                    extensions.push(Extension {
+                        id: protocol_type,
+                        data: ExtensionData::MandatoryData(
+                            pdu[offset..offset + size_data as usize].into(),
+                        ),
+                    });
+                    offset += size_data as usize;
+                    break; // final ->  no more extension, neither protocol type
+                }
+
+                MandatoryHeaderExt::NonFinal(size_data) => {
+                    extensions.push(Extension {
+                        id: protocol_type,
+                        data: ExtensionData::MandatoryData(
+                            pdu[offset..offset + size_data as usize].into(),
+                        ),
+                    });
+                    offset += size_data as usize;
+                }
+            }
+        } else {
+            // this is a optionnal header extension
+            // using H-LEN to determine the size of the extension DATA
+            let current_ext_data_len = match optionnal_extension_data_size_from_hlen(h_len) {
+                Ok(r) => r,
+                Err(_) => unreachable!(),
+                // H-LEN = 0 <=> mandatory header extension, case already managed
+                // H-LEN > 5 <=> protocol type > SECOND_RANGE_PTYPE, unreachable
+            };
+
+            let ext_data: ExtensionData = match current_ext_data_len {
+                0 => ExtensionData::NoData,
+                2 => ExtensionData::Data2(
+                    pdu[offset..offset + current_ext_data_len as usize]
+                        .try_into()
+                        .expect("Unreachable"),
+                ),
+                4 => ExtensionData::Data4(
+                    pdu[offset..offset + current_ext_data_len as usize]
+                        .try_into()
+                        .expect("Unreachable"),
+                ),
+                6 => ExtensionData::Data6(
+                    pdu[offset..offset + current_ext_data_len as usize]
+                        .try_into()
+                        .expect("Unreachable"),
+                ),
+                8 => ExtensionData::Data8(
+                    pdu[offset..offset + current_ext_data_len as usize]
+                        .try_into()
+                        .expect("Unreachable"),
+                ),
+                _ => unreachable!(), //optionnal_extension_data_size_from_hlen ensure that current_ext_data_len has a correct value
+            };
+
+            extensions.push(Extension {
+                id: protocol_type,
+                data: ext_data,
+            });
+            offset += current_ext_data_len as usize;
+        }
+        // reading protocol type for next iteration
+        protocol_type = u16::from_be_bytes(pdu[offset..offset + PROTOCOL_LEN].try_into().unwrap());
+        offset += PROTOCOL_LEN;
+    }
+    Ok(IterateOverExtensionHeaderStatus {
+        extensions,
+        protocol_type,
+        header_ext_len: offset,
+    })
 }

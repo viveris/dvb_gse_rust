@@ -5,12 +5,15 @@ use std::vec;
 
 use crate::crc::{CrcCalculator, DefaultCrc};
 use crate::gse_decap::{
-    read_gse_header, DecapContext, DecapError, DecapMetadata, DecapStatus, Decapsulator,
+    read_gse_header, DecapContext, DecapError, DecapMetadata, DecapStatus, Decapsulator, GetLabelorFragIdError, LabelorFragId
 };
 use crate::gse_standard::{
     COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_PKT, FIXED_HEADER_LEN, FRAG_ID_LEN, INTERMEDIATE_PKT,
     LABEL_3_B, LABEL_3_B_LEN, LABEL_6_B, LABEL_6_B_LEN, LABEL_BROADCAST, LABEL_BROADCAST_LEN,
     LABEL_REUSE, LABEL_REUSE_LEN, PROTOCOL_LEN, TOTAL_LENGTH_LEN,
+};
+use crate::header_extension::{
+    SignalisationMandatoryExtensionHeaderManager, SimpleMandatoryExtensionHeaderManager,
 };
 use crate::label::{Label, LabelType};
 use crate::pkt_type::PktType;
@@ -277,7 +280,7 @@ fn test_read_gse_header_016() {
 fn create_decapsulator(
     max_frag_id: usize,
     max_pdu_size: usize,
-) -> Decapsulator<SimpleGseMemory, DefaultCrc> {
+) -> Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> {
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, 0, 0);
 
     for _ in 0..max_frag_id {
@@ -286,8 +289,33 @@ fn create_decapsulator(
     }
 
     let crc_calculator = DefaultCrc {};
-    let decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc> =
-        Decapsulator::new(memory, crc_calculator);
+    let header_ext_manager = SimpleMandatoryExtensionHeaderManager {};
+    let decapsulator: Decapsulator<
+        SimpleGseMemory,
+        DefaultCrc,
+        SimpleMandatoryExtensionHeaderManager,
+    > = Decapsulator::new(memory, crc_calculator, header_ext_manager);
+    decapsulator
+}
+
+fn create_decapsulator_signalisation(
+    max_frag_id: usize,
+    max_pdu_size: usize,
+) -> Decapsulator<SimpleGseMemory, DefaultCrc, SignalisationMandatoryExtensionHeaderManager> {
+    let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, 0, 0);
+
+    for _ in 0..max_frag_id {
+        let storage = vec![0; max_pdu_size].into_boxed_slice();
+        memory.provision_storage(storage).unwrap();
+    }
+
+    let crc_calculator = DefaultCrc {};
+    let header_ext_manager = SignalisationMandatoryExtensionHeaderManager {};
+    let decapsulator: Decapsulator<
+        SimpleGseMemory,
+        DefaultCrc,
+        SignalisationMandatoryExtensionHeaderManager,
+    > = Decapsulator::new(memory, crc_calculator, header_ext_manager);
     decapsulator
 }
 
@@ -341,6 +369,8 @@ fn test_decap_complete_001() {
     let exp_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
         DecapMetadata {
+            extensions: vec![],
+
             pdu_len: PDU_LEN,
             label: Label::SixBytesLabel(*b"012345"),
             protocol_type: 0xFFFF,
@@ -382,6 +412,8 @@ fn test_decap_complete_002() {
     let exp_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
         DecapMetadata {
+            extensions: vec![],
+
             pdu_len: PDU_LEN,
             label: Label::ThreeBytesLabel(*b"012"),
             protocol_type: 0xF0F0,
@@ -474,6 +506,8 @@ fn test_decap_complete_005() {
     let exp_status = Ok(DecapStatus::CompletedPkt(
         Box::new([0; PDU_LEN]),
         DecapMetadata {
+            extensions: vec![],
+
             pdu_len: PDU_LEN,
             label: Label::Broadcast,
             protocol_type: 0x0F0F,
@@ -515,6 +549,8 @@ fn test_decap_complete_006() {
     let exp_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
         DecapMetadata {
+            extensions: vec![],
+
             pdu_len: PDU_LEN,
             label: Label::ThreeBytesLabel(*b"012"),
             protocol_type: 0xF0F0,
@@ -556,6 +592,8 @@ fn test_decap_complete_007() {
     let exp_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
         DecapMetadata {
+            extensions: vec![],
+
             pdu_len: PDU_LEN,
             label: Label::SixBytesLabel(*b"012345"),
             protocol_type: 0xF0F0,
@@ -832,7 +870,7 @@ fn test_decap_complete_015() {
     decapsulator.last_label = Some(Label::ThreeBytesLabel(*b"012"));
 
     let exp_pkt_len = PKT_LEN;
-    let exp_status = Err(DecapError::ErrorProtocolType);
+    let exp_status = Err(DecapError::ErrorUnkownMandatoryHeader);
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
     exp_decapsulator.last_label = None;
 
@@ -848,7 +886,7 @@ fn test_decap_complete_015() {
 }
 
 macro_rules! test_decap_frag {
-    ($comment: expr, $buffer: expr, $decapsulator: expr, $exp_decapsulator: expr, $frag: expr, $frag_id: expr, $exp_decap_status: expr, $exp_pkt_len: expr, $exp_pdu: expr ) => {
+    ($comment: expr, $buffer: expr, $decapsulator: expr, $exp_decapsulator: expr, $frag: expr, $frag_id: expr, $exp_decap_status: expr, $exp_pkt_len: expr, $exp_pdu: expr) => {
         $frag.generate(&mut $buffer);
         let (obs_decap_status, obs_pkt_len) = match $decapsulator.decap(&$buffer) {
             Ok((status, len)) => (Ok(status), len),
@@ -856,7 +894,9 @@ macro_rules! test_decap_frag {
         };
 
         let obs_pdu = match obs_decap_status.clone() {
-            Ok(DecapStatus::FragmentedPkt) => $decapsulator.memory.take_frag($frag_id).unwrap().1,
+            Ok(DecapStatus::FragmentedPkt(_)) => {
+                $decapsulator.memory.take_frag($frag_id).unwrap().1
+            }
             Ok(DecapStatus::CompletedPkt(pdu, _)) => pdu,
             _ => $decapsulator.memory.new_pdu().unwrap(),
         };
@@ -897,7 +937,15 @@ fn test_decap_first_001() {
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -936,7 +984,14 @@ fn test_decap_first_002() {
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1096,6 +1151,7 @@ fn test_decap_first_006() {
         total_length,
         total_length,
         false,
+        vec![],
     );
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
@@ -1104,8 +1160,14 @@ fn test_decap_first_006() {
     let label = Label::SixBytesLabel(*b"012345");
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1144,8 +1206,14 @@ fn test_decap_first_007() {
     let label = Label::Broadcast;
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1183,22 +1251,11 @@ fn test_decap_first_008() {
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
     frag.generate(&mut buffer);
-
-<<<<<<< HEAD
-    if let Err((obs_status, _obs_pkt_len)) = decapsulator.decap(&buffer) {
-        let exp_decap_status = DecapError::ErrorProtocolType;
-        let _exp_pkt_len = buffer.len();
-        assert_eq!(exp_decap_status, obs_status, "{}", comment);
-
-        //Because returning pkt_len instead of buffer len this assert is useless
-        //assert_eq!(exp_pkt_len, obs_pkt_len, "{}", comment);
-=======
     if let Err((obs_status, obs_pkt_len)) = decapsulator.decap(&buffer) {
-        let exp_decap_status = DecapError::ErrorProtocolType;
-        let exp_pkt_len = buffer.len();
+        let exp_decap_status = DecapError::ErrorUnkownMandatoryHeader;
+        let exp_pkt_len = PKT_LEN;
         assert_eq!(exp_decap_status, obs_status, "{}", comment);
         assert_eq!(exp_pkt_len, obs_pkt_len, "{}", comment);
->>>>>>> 669d003 (Publication to open source)
     } else {
         panic!("Wrong result, expected Err got Ok")
     }
@@ -1225,7 +1282,13 @@ fn test_decap_first_009() {
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+        pdu_len: 0,
+        protocol_type,
+        label: Label::SixBytesLabel(*b"012345"),
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1265,7 +1328,14 @@ fn test_decap_first_010() {
     let pdu = *b"abcdefghijklmnopqrstuvwxyz";
     let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+
+        pdu_len: 0,
+        protocol_type,
+        label: Label::ThreeBytesLabel(*b"012"), //From last label // TODO plus propre
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1426,12 +1496,27 @@ fn test_decap_intermediate_001() {
     let pdu_len = 0;
     let total_len = PKT_LEN as u16;
 
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = FIXED_HEADER_LEN + gse_len as usize;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1472,12 +1557,27 @@ fn test_decap_intermediate_002() {
     let pdu_len = 0;
     let total_len = PKT_LEN as u16;
 
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1517,12 +1617,27 @@ fn test_decap_intermediate_003() {
     let pdu_len = 0;
     let total_len = 10000;
 
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
 
-    let exp_decap_status = Ok(DecapStatus::FragmentedPkt);
+    let exp_metadata = DecapMetadata {
+        extensions: vec![],
+
+        pdu_len: 0,
+        protocol_type,
+        label,
+    };
+    let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;
     let exp_pdu = pdu;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1563,7 +1678,15 @@ fn test_decap_intermediate_004() {
     let pdu_len = 0;
     let total_len = 10000;
 
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
@@ -1644,13 +1767,23 @@ fn test_decap_end_001() {
     let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
 
     let crc = DefaultCrc {}.calculate_crc32(&pdu, protocol_type, total_len, label.get_bytes());
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
     let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu, crc);
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
 
     let metadata = DecapMetadata {
+        extensions: vec![],
+
         label,
         pdu_len: pdu.len(),
         protocol_type,
@@ -1697,7 +1830,15 @@ fn test_decap_end_002() {
     let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
 
     let crc = DefaultCrc {}.calculate_crc32(&pdu, protocol_type, total_len, label.get_bytes());
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
     let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu, crc);
 
     let mut state = decapsulator.memory.new_frag(context).unwrap();
@@ -1705,6 +1846,8 @@ fn test_decap_end_002() {
     decapsulator.memory.save_frag(state).unwrap();
 
     let metadata = DecapMetadata {
+        extensions: vec![],
+
         label,
         pdu_len: pdu.len(),
         protocol_type,
@@ -1749,13 +1892,23 @@ fn test_decap_end_003() {
     let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
 
     let crc = DefaultCrc {}.calculate_crc32(&pdu, protocol_type, total_len, label.get_bytes());
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
     let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu, crc);
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
 
     let metadata = DecapMetadata {
+        extensions: vec![],
+
         label,
         pdu_len: pdu.len(),
         protocol_type,
@@ -1801,7 +1954,15 @@ fn test_decap_end_004() {
     let protocol_type = 0x1111;
     let pdu_len = 0;
     let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
 
     let state = decapsulator.memory.new_frag(context).unwrap();
     decapsulator.memory.save_frag(state).unwrap();
@@ -1847,7 +2008,15 @@ fn test_decap_end_005() {
     let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
 
     let crc = 0;
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
     let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu, crc);
 
     let state = decapsulator.memory.new_frag(context).unwrap();
@@ -1893,7 +2062,15 @@ fn test_decap_end_006() {
     let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
 
     let crc = DefaultCrc {}.calculate_crc32(&pdu, protocol_type, total_len, label.get_bytes());
-    let context = DecapContext::new(label, protocol_type, frag_id, total_len, pdu_len, false);
+    let context = DecapContext::new(
+        label,
+        protocol_type,
+        frag_id,
+        total_len,
+        pdu_len,
+        false,
+        vec![],
+    );
     let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu, crc);
 
     let state = decapsulator.memory.new_frag(context).unwrap();
@@ -1902,7 +2079,7 @@ fn test_decap_end_006() {
     let exp_pdu = pdu;
     let exp_decap_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b""),
-        DecapMetadata::new(0, protocol_type, label),
+        DecapMetadata::new(0, protocol_type, label, vec![]),
     ));
     let exp_pkt_len = PKT_LEN;
     let mut exp_decapsulator = create_decapsulator(1, PDU_LEN);
@@ -1960,7 +2137,7 @@ fn test_decap_end_007() {
 #[test]
 fn test_decap_signalisation_small() {
     let storage_size = 20;
-    let mut decapsulator = create_decapsulator(1, storage_size);
+    let mut decapsulator = create_decapsulator_signalisation(1, storage_size);
 
     //packet containing a small table
     let packet = r"e0080081f8008000003f";
@@ -1985,7 +2162,7 @@ fn test_decap_signalisation_small() {
 #[test]
 fn test_decap_signalisation_medium() {
     let storage_size = 2000;
-    let mut decapsulator = create_decapsulator(1, storage_size);
+    let mut decapsulator = create_decapsulator_signalisation(1, storage_size);
 
     //packet containing a medium table
     let packet = "e0e30082a40064011a3f13\
@@ -2022,7 +2199,7 @@ fn test_decap_signalisation_medium() {
 #[test]
 fn test_decap_signalisation_big() {
     let storage_size: usize = 15000;
-    let mut decapsulator = create_decapsulator(1, storage_size);
+    let mut decapsulator = create_decapsulator_signalisation(1, storage_size);
     //First part of a big table
     //Checking if the lib is able to fragment
     let pkt1 = "a6d6000cdb0082ad0064013f01007c0c7e0000000005033f13e8033f13e6033f13e5033f13e3033f\
@@ -2069,11 +2246,13 @@ fn test_decap_signalisation_big() {
         1204033f1202005d680004033f1201033f11ff033f11fd033f11fc033f11fb005ef00004033f11fa\
         033f11fa033f11f9033f11f8033f11f70060780004033f11f6033f11f5033f11f4033f11f4033f11\
         f30062000004033f11f2033f11ed033f11ec033f11ea033f11e9006388000403";
+       
     let result = decapsulator.decap(&hex_to_vec_u8(pkt1));
     //should be fragmented
     match result {
         Ok(e) => match e.0 {
-            DecapStatus::FragmentedPkt => {}
+
+            DecapStatus::FragmentedPkt(_) => {}
             _ => {
                 panic!("Error when fragmenting big table");
             }
@@ -2149,4 +2328,554 @@ fn hex_to_vec_u8(hex: &str) -> Vec<u8> {
         };
     }
     vec
+}
+
+#[test]
+// label 6B, complete packet
+fn test_get_label_or_frag_id_001() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = PROTOCOL_LEN + LABEL_6_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 6B Label extracted from complete packet";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+    let packet = GseCompletePacket::new(
+        GSE_LEN as u16,
+        0xFFFF,
+        Label::SixBytesLabel(*b"012345"),
+        b"abcdefghijklmnopqrstuvwxyz",
+    );
+    packet.generate(&mut buffer);
+    let mut decapsulator = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::Lbl(Label::SixBytesLabel(*b"012345"));
+
+    // status value should be
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+
+#[test]
+// label 3B, complete packet
+fn test_get_label_or_frag_id_002() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 3B Label extracted from complete packet";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+    let packet = GseCompletePacket::new(
+        GSE_LEN as u16,
+        0xFFFF,
+        Label::ThreeBytesLabel(*b"GGG"),
+        b"abcdefghijklmnopqrstuvwxyz",
+    );
+    packet.generate(&mut buffer);
+    let mut decapsulator = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::Lbl(Label::ThreeBytesLabel(*b"GGG"),);
+
+    // status value should be
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+
+
+#[test]
+// label Reuse -> Error, complete packet
+fn test_get_label_or_frag_id_003() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = PROTOCOL_LEN + LABEL_REUSE_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Read LabelReuse from complete packet, can not determine the true label ";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+    let packet = GseCompletePacket::new(
+        GSE_LEN as u16,
+        0xFFFF,
+        Label::ReUse,
+        b"abcdefghijklmnopqrstuvwxyz",
+    );
+    packet.generate(&mut buffer);
+    let mut decapsulator = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrLabelReuse;
+
+    // status value should be
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+#[test]
+// label Broadcast, complete packet
+fn test_get_label_or_frag_id_004() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = PROTOCOL_LEN + LABEL_BROADCAST_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct Broadcast Label extracted from complete packet";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+    let packet = GseCompletePacket::new(
+        GSE_LEN as u16,
+        0xFFFF,
+        Label::Broadcast,
+        b"abcdefghijklmnopqrstuvwxyz",
+    );
+    packet.generate(&mut buffer);
+    let mut decapsulator = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::Lbl(Label::Broadcast);
+
+    // status value should be
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+
+#[test]
+// Packet too small for 6 bytes label, complete packet
+fn test_get_label_or_frag_id_005() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = PROTOCOL_LEN + LABEL_6_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Buffer too small for 6 bytes label in complete packet";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+    let packet = GseCompletePacket::new(
+        GSE_LEN as u16,
+        0xFFFF,
+        Label::SixBytesLabel(*b"012345"),
+        b"abcdefghijklmnopqrstuvwxyz",
+    );
+
+    packet.generate(&mut buffer);
+    let mut decapsulator = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    const TOO_SMALL_SIZE: usize = 9;
+    let mut buffer_too_small: [u8; TOO_SMALL_SIZE] = [0; TOO_SMALL_SIZE];
+    // gse pkt is supposed to be at least 10 bytes
+    //  | AA | PP | LLLLLLL |
+    //  AA :     2B FIXED HEADER LEN
+    //  PP :     2B PROTOCOL TYPE
+    //  LLLLLL : 6B of label data
+    //  TOTAL =  10 Bytes min
+    buffer_too_small.copy_from_slice(&buffer[..TOO_SMALL_SIZE]);
+    let status = decapsulator.get_label_or_frag_id(&buffer_too_small);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrSizeBuffer;
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+#[test]
+// Packet too small for 3 bytes label, complete packet
+fn test_get_label_or_frag_id_006() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Buffer too small for 3 bytes label in complete packet";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+    let packet = GseCompletePacket::new(
+        GSE_LEN as u16,
+        0xFFFF,
+        Label::ThreeBytesLabel(*b"999"),
+        b"abcdefghijklmnopqrstuvwxyz",
+    );
+    const TOO_SMALL_SIZE: usize = 6;
+    let mut buffer_too_small: [u8; TOO_SMALL_SIZE] = [0; TOO_SMALL_SIZE];
+    // gse pkt is supposed to be at least 10 bytes
+    //  | AA | PP | LLLL |
+    //  AA :     2B FIXED HEADER LEN
+    //  PP :     2B PROTOCOL TYPE
+    //  LLL: 3B of label data
+    //  TOTAL =  7 Bytes min
+    packet.generate(&mut buffer);
+    let mut decapsulator = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+
+    buffer_too_small.copy_from_slice(&buffer[..TOO_SMALL_SIZE]);
+    let status = decapsulator.get_label_or_frag_id(&buffer_too_small);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrSizeBuffer;
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+
+#[test]
+// label 6B, first frag
+fn test_get_label_or_frag_id_007() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_6_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 6B Label extracted from first frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 42;
+    let total_length = 1000;
+    let protocol_type = 0xFFFF;
+    let label = Label::SixBytesLabel(*b"012134");
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::Lbl(label);
+
+    // status value should be
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+#[test]
+// label 3B, first frag
+fn test_get_label_or_frag_id_008() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 3B Label extracted from first frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 42;
+    let total_length = 1000;
+    let protocol_type = 0xFFFF;
+    let label = Label::ThreeBytesLabel(*b"012");
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::Lbl(label);
+
+    // status value should be
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+#[test]
+// label Broadcast, first frag
+fn test_get_label_or_frag_id_009() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_BROADCAST_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 3B Label extracted from first frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 42;
+    let total_length = 1000;
+    let protocol_type = 0xFFFF;
+    let label = Label::Broadcast;
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::Lbl(label);
+
+    // status value should be
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+#[test]
+// label Reuse → Error, first frag
+fn test_get_label_or_frag_id_010() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_BROADCAST_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 3B Label extracted from first frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 42;
+    let total_length = 1000;
+    let protocol_type = 0xFFFF;
+    let label = Label::ReUse;
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrLabelReuse;
+
+    // status value should be
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+#[test]
+// Packet too small for label 6b in first frag
+fn test_get_label_or_frag_id_011() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_6_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 3B Label extracted from first frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 42;
+    let total_length = 1000;
+    let protocol_type = 0xFFFF;
+    let label = Label::SixBytesLabel(*b"012345");
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    const TOO_SMALL_SIZE: usize = 12;
+    let mut buffer_too_small: [u8; TOO_SMALL_SIZE] = [0; TOO_SMALL_SIZE];
+    // gse pkt is supposed to be at least 13 bytes
+    //  | AA | F | TL | PT | LLLLLLL |
+    //  AA :     2B FIXED HEADER LEN 
+    //  F :      1B Fragment ID
+    //  TL :     2B Total LEN
+    //  PT :     2B PROTOCOL TYPE
+    //  LLLLLL : 6B of label data
+    //  TOTAL =  13 Bytes min
+    buffer_too_small.copy_from_slice(&buffer[..TOO_SMALL_SIZE]);
+
+    let status = decapsulator.get_label_or_frag_id(&buffer_too_small);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrSizeBuffer;
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+#[test]
+// Packet too small for label 3b in first frag
+fn test_get_label_or_frag_id_012() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct 3B Label extracted from first frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 42;
+    let total_length = 1000;
+    let protocol_type = 0xFFFF;
+    let label = Label::ThreeBytesLabel(*b"012");
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag = GseFirstFragPacket::new(gse_len, frag_id, total_length, protocol_type, label, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+
+    const TOO_SMALL_SIZE: usize = 9;
+    let mut buffer_too_small: [u8; TOO_SMALL_SIZE] = [0; TOO_SMALL_SIZE];
+    // gse pkt is supposed to be at least 10 bytes
+    //  | AA | F | TL | PT | LLLL |
+    //  AA :     2B FIXED HEADER LEN 
+    //  F :      1B Fragment ID
+    //  TL :     2B Total LEN
+    //  PT :     2B PROTOCOL TYPE
+    //  LLL : 3B of label data
+    //  TOTAL =  10 Bytes min
+    buffer_too_small.copy_from_slice(&buffer[..TOO_SMALL_SIZE]);
+
+    let status = decapsulator.get_label_or_frag_id(&buffer_too_small);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrSizeBuffer;
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+
+#[test]
+// fragid from intermediate frag
+fn test_get_label_or_frag_id_013() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct fragid from intermediate frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 12;
+    let frag = GseIntermediatePacket::new(gse_len, frag_id, &pdu);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::FragId(frag_id);
+
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+
+#[test]
+// buffer too small for fragid from intermediate frag
+fn test_get_label_or_frag_id_014() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "buffer too small for fragid from intermediate frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let gse_len = GSE_LEN as u16;
+    let frag_id = 12;
+    let frag = GseIntermediatePacket::new(gse_len, frag_id, &pdu);
+
+    const TOO_SMALL_SIZE: usize = 2;
+    let mut buffer_too_small: [u8; TOO_SMALL_SIZE] = [0; TOO_SMALL_SIZE];
+    // gse pkt is supposed to be at least 3 bytes
+    //  | AA | PP | LLLLLLL |
+    //  AA :     2B FIXED HEADER LEN
+    //  F :     1 B Frag Id
+    //  TOTAL =  3 Bytes min
+
+    frag.generate(&mut buffer);
+    buffer_too_small.copy_from_slice(&buffer[..TOO_SMALL_SIZE]);
+
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+    let status = decapsulator.get_label_or_frag_id(&buffer_too_small);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrSizeBuffer;
+
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
+}
+
+
+#[test]
+// fragid from end frag
+fn test_get_label_or_frag_id_015() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "Correct fragid from end frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+
+    let frag_id = 12;
+
+    let label = Label::ReUse;
+    let protocol_type = 0x1111;
+    let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
+
+    let crc = DefaultCrc {}.calculate_crc32(&pdu, protocol_type, total_len, label.get_bytes());
+    let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu,crc);
+
+    frag.generate(&mut buffer);
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+    let status = decapsulator.get_label_or_frag_id(&buffer);
+    let exp_status: LabelorFragId = LabelorFragId::FragId(frag_id);
+
+    match status {
+        Ok(res) => assert_eq!(res, exp_status, "{}", comment),
+        Err(e) => panic!("Wrong result, expected Ok got Err {:?}", e),
+    }
+}
+
+
+#[test]
+// Packet too small for fragid from end frag
+fn test_get_label_or_frag_id_016() {
+    const PDU_LEN: usize = 26;
+    const GSE_LEN: usize = FRAG_ID_LEN + TOTAL_LENGTH_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
+    const PKT_LEN: usize = FIXED_HEADER_LEN + GSE_LEN;
+
+    let comment = "buffer too small for fragid from end frag";
+    let mut buffer: [u8; PKT_LEN] = [0; PKT_LEN];
+
+    let pdu = *b"abcdefghijklmnopqrstuvwxyz";
+    let frag_id = 12;
+
+    let label = Label::ReUse;
+    let protocol_type = 0x1111;
+    let total_len = (pdu.len() + PROTOCOL_LEN + label.len()) as u16;
+
+    let crc = DefaultCrc {}.calculate_crc32(&pdu, protocol_type, total_len, label.get_bytes());
+    let frag = GseEndFragPacket::new(GSE_LEN as u16, frag_id, &pdu,crc);
+
+    const TOO_SMALL_SIZE: usize = 2;
+    let mut buffer_too_small: [u8; TOO_SMALL_SIZE] = [0; TOO_SMALL_SIZE];
+    // gse pkt is supposed to be at least 3 bytes
+    //  | AA | PP | LLLLLLL |
+    //  AA :     2B FIXED HEADER LEN
+    //  F :     1 B Frag Id
+    //  TOTAL =  3 Bytes min
+
+    frag.generate(&mut buffer);
+    buffer_too_small.copy_from_slice(&buffer[..TOO_SMALL_SIZE]);
+
+    let mut decapsulator: Decapsulator<SimpleGseMemory, DefaultCrc, SimpleMandatoryExtensionHeaderManager> = create_decapsulator(1, PDU_LEN);
+    decapsulator.last_label = None;
+    let status = decapsulator.get_label_or_frag_id(&buffer_too_small);
+    let exp_status: GetLabelorFragIdError = GetLabelorFragIdError::ErrSizeBuffer;
+
+    match status {
+        Ok(res) => panic!("Wrong result, expected Err got Ok {:?}", res),
+        Err(e) => assert_eq!(e, exp_status, "{}", comment),
+    }
 }

@@ -11,6 +11,7 @@
 //! use dvb_gse_rust::gse_decap::{Decapsulator, DecapMetadata, DecapStatus, SimpleGseMemory, GseDecapMemory};
 //! use dvb_gse_rust::label::Label;
 //! use dvb_gse_rust::crc::DefaultCrc;
+//! use dvb_gse_rust::header_extension::SimpleMandatoryExtensionHeaderManager;
 //! 
 //! // Metadata and Payload (pdu) has to be set :
 //! let protocol_type = 0xFFFF;
@@ -39,7 +40,7 @@
 //! memory.provision_storage(storage).unwrap();
 //!
 //! // Creation of the decapsulator with his crc calculation trait and his memory
-//! let mut decapsulator = Decapsulator::new(memory, DefaultCrc {}); 
+//! let mut decapsulator = Decapsulator::new(memory, DefaultCrc {} , SimpleMandatoryExtensionHeaderManager {}); 
 //! 
 //! // Next, the gse packet can be decapsulated
 //! let (decap_status, pkt1_len) = match decapsulator.decap(&buffer) { Ok((decap_status, pkt_len)) => (decap_status, pkt_len), Err(_) => unreachable!() };
@@ -51,6 +52,7 @@
 //!        pdu_len: pdu.len(),
 //!        label,
 //!        protocol_type,
+//! extensions: vec![],
 //!    },
 //! );
 //! assert_eq!(decap_status, exp_decap_status);
@@ -63,7 +65,7 @@
 //! use dvb_gse_rust::gse_decap::{Decapsulator, DecapMetadata, DecapStatus, SimpleGseMemory, GseDecapMemory};
 //! use dvb_gse_rust::label::Label;
 //! use dvb_gse_rust::crc::DefaultCrc;
-//! 
+//! use dvb_gse_rust::header_extension::SimpleMandatoryExtensionHeaderManager;
 //! // Metadata and Payload (pdu) has to be set :
 //! let protocol_type = 0xFFFF;
 //! let label = Label::SixBytesLabel(*b"012345");
@@ -95,7 +97,7 @@
 //! memory.provision_storage(storage).unwrap();
 //! 
 //! // Creation of the decapsulator with his crc calculation trait and his memory
-//! let mut decapsulator = Decapsulator::new(memory, DefaultCrc {}); 
+//! let mut decapsulator = Decapsulator::new(memory, DefaultCrc {}, SimpleMandatoryExtensionHeaderManager {}); 
 //!
 //! // Next, the 3 gse packets can be decapsulated
 //! let (decap_status, pkt1_len) = match decapsulator.decap(&buffer) { Ok((decap_status, pkt_len)) => (decap_status, pkt_len), Err(_) => unreachable!() };
@@ -109,6 +111,7 @@
 //!        pdu_len: pdu.len(),
 //!        label,
 //!        protocol_type,
+//! extensions : vec![],
 //!    },
 //! );
 //! assert_eq!(decap_end_frag_status, exp_decap_end_frag_status);
@@ -121,5 +124,5 @@ pub mod gse_encap;
 pub mod gse_standard;
 pub mod label;
 mod pkt_type;
-
+pub mod header_extension;
 pub mod utils;

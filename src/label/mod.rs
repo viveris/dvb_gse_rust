@@ -68,7 +68,6 @@ impl Label {
                 LabelType::ReUse => Label::ReUse,
             };
             label
-
         } else {
             // Misuse of function
             panic!("Wrong size label content");

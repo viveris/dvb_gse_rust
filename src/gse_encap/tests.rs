@@ -825,7 +825,7 @@ fn test_encap_012() {
 
     let pdu_in: &[u8; 26] = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
-        protocol_type: 0x0000,
+        protocol_type: 0x100,
         label: Label::ReUse,
     };
     let mut buffer_in = [0; 29];
@@ -1944,7 +1944,7 @@ fn test_encap_preview_012() {
 
     let pdu_in: &[u8; 26] = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
-        protocol_type: 0x0000,
+        protocol_type: 0x100,
         label: Label::ReUse,
     };
     let mut buffer_in = [0; 29];

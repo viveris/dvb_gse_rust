@@ -13,7 +13,7 @@ fn test_too_small_storage() {
     let max_pdu_frag = 0;
 
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
-    let _ = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let _ = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
 
     // Buffer too small
     let storage = vec![0; max_pdu_size - 1].into_boxed_slice();
@@ -136,10 +136,10 @@ fn test_simple_memory_new_frag() {
         .unwrap();
 
     // New frag
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let obs = memory.new_frag(context);
     let exp_storage = vec![1; 100].into_boxed_slice();
-    let exp_context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let exp_context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     assert_eq!(Ok((exp_context, exp_storage)), obs);
 }
 
@@ -153,7 +153,7 @@ fn test_simple_memory_new_frag_underflow() {
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
 
     // New frag
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let obs = memory.new_frag(context);
     assert_eq!(Err(DecapMemoryError::StorageUnderflow), obs);
 }
@@ -167,7 +167,7 @@ fn test_simple_memory_save_frag() {
 
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
 
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     let obs = memory.save_frag((context, storage));
 
@@ -183,12 +183,12 @@ fn test_simple_memory_save_frag_corrupted() {
 
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
 
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     memory.save_frag((context, storage)).unwrap();
 
     let storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let obs = memory.save_frag((context, storage));
 
     assert_eq!(obs, Err(DecapMemoryError::MemoryCorrupted));
@@ -202,15 +202,15 @@ fn test_simple_memory_take() {
     let max_pdu_frag = 0;
 
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     memory.save_frag((context, storage)).unwrap();
 
     // Take frag
-    let exp_context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let exp_context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let exp_storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     let obs = memory.take_frag(0);
-    DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
 
     assert_eq!(Ok((exp_context, exp_storage)), obs);
 }
@@ -223,11 +223,11 @@ fn test_simple_memory_take_undefined() {
     let max_pdu_frag = 0;
 
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     memory.save_frag((context, storage)).unwrap();
     memory.take_frag(0).unwrap();
-    DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
 
     // Take frag again
     let obs = memory.take_frag(0);
@@ -243,23 +243,23 @@ fn test_simple_memory_multiple_frag() {
 
     let mut memory = SimpleGseMemory::new(max_frag_id, max_pdu_size, max_delay, max_pdu_frag);
 
-    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     memory.save_frag((context, storage)).unwrap();
 
-    let context = DecapContext::new(Label::Broadcast, 0, 1, 0, 0, false);
+    let context = DecapContext::new(Label::Broadcast, 0, 1, 0, 0, false, vec![]);
     let storage: Box<[u8]> = vec![1; max_pdu_size].into_boxed_slice();
     memory.save_frag((context, storage)).unwrap();
 
     // Take frag 0
-    let exp_context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false);
+    let exp_context = DecapContext::new(Label::ReUse, 0, 0, 0, 0, false, vec![]);
     let exp_storage: Box<[u8]> = vec![0; max_pdu_size].into_boxed_slice();
     let obs = memory.take_frag(0);
     let exp = Ok((exp_context, exp_storage));
     assert_eq!(exp, obs);
 
     // Take frag 1
-    let exp_context = DecapContext::new(Label::Broadcast, 0, 1, 0, 0, false);
+    let exp_context = DecapContext::new(Label::Broadcast, 0, 1, 0, 0, false,  vec![]);
     let exp_storage: Box<[u8]> = vec![1; max_pdu_size].into_boxed_slice();
     let obs = memory.take_frag(1);
     let exp = Ok((exp_context, exp_storage));
