@@ -242,11 +242,11 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
     /// assert_eq!(pkt_len, exp_pkt_len);
     /// ```
     pub fn decap(&mut self, buffer: &[u8]) -> Result<(DecapStatus, usize), (DecapError, usize)> {
-        // check buffer length
         let buffer_len = buffer.len();
+
+        //Check if buffer is not too small (should have a len of 3 at least to contains header)
         if buffer_len < FIXED_HEADER_LEN {
             self.last_label = None;
-            // len_pkt = buffer_len because the buffer is too small to contain another packet
             return Err((DecapError::ErrorSizeBuffer, buffer_len));
         }
 
@@ -263,10 +263,9 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
 
         let pkt_len = gse_len + FIXED_HEADER_LEN;
 
-        // check buffer size
+        // check if the gse_len and header len is similar to the original provided buffer
         if buffer_len < pkt_len {
             self.last_label = None;
-            // len_pkt = buffer_len because the buffer is too small to contain another packet
             return Err((DecapError::ErrorSizeBuffer, buffer_len));
         }
 
