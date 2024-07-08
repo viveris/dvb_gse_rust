@@ -44,3 +44,9 @@ pub const FIRST_RANGE_PTYPE: u16 = 1535;
 // Gse constant for CRC
 pub const CRC_LEN: usize = 4;
 pub const CRC_INIT: u32 = 0xFFFFFFFF;
+
+// Gse constant for signalling
+// https://www.etsi.org/deliver/etsi_en/301500_301599/30154502/01.03.01_60/en_30154502v010301p.pdf
+// Section 5.1.0
+pub const NCR_PROTOCOL_ID: u16 = 0x0081;
+pub const INTERNAL_SIGNALING_PROTOCOL_ID: u16 = 0x0082;
