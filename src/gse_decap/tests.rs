@@ -1950,11 +1950,11 @@ fn test_decap_end_007() {
 }
 
 #[test]
-fn test_decap_signalisation_ncr() {
+fn test_decap_signalisation_small() {
     let storage_size = 20;
     let mut decapsulator = create_decapsulator(1, storage_size);
 
-    //packet containing a ncr table
+    //packet containing a small table
     let packet = r"e0080081f8008000003f";
 
     let result = decapsulator.decap(&hex_to_vec_u8(packet));
@@ -1965,21 +1965,21 @@ fn test_decap_signalisation_ncr() {
                 assert_eq!(a[0..6], [248, 0, 128, 0, 0, 63]);
             }
             _ => {
-                panic!("Error when decapsulating ncr table");
+                panic!("Error when decapsulating small table");
             }
         },
         Err(e) => {
-            panic!("Error when decapsulating ncr table, error {:?}", e);
+            panic!("Error when decapsulating small table, error {:?}", e);
         }
     }
 }
 
 #[test]
-fn test_decap_signalisation_cmt() {
+fn test_decap_signalisation_medium() {
     let storage_size = 2000;
     let mut decapsulator = create_decapsulator(1, storage_size);
 
-    //packet containing a CMT table
+    //packet containing a medium table
     let packet = "e0e30082a40064011a3f13\
     cbf8008000003f13caf8008000003f13c7f8008000\
     003f1379f8008000003f1371f8008000003f135df8\
@@ -2002,21 +2002,21 @@ fn test_decap_signalisation_cmt() {
                 assert_eq!(data[0..6], [164, 0, 100, 1, 26, 63])
             }
             _ => {
-                panic!("Error on CMT decap");
+                panic!("Error on medium decap");
             }
         },
         Err(e) => {
-            panic!("Error on CMT decap, Error {:?}", e);
+            panic!("Error on medium decap, Error {:?}", e);
         }
     }
 }
 
 #[test]
-fn test_decap_signalisation_tbtp() {
+fn test_decap_signalisation_big() {
     let storage_size: usize = 15000;
     let mut decapsulator = create_decapsulator(1, storage_size);
-    //First part of a TBTP
-    // Checking if the lib is able to fragment
+    //First part of a big table
+    //Checking if the lib is able to fragment
     let pkt1 = "a6d6000cdb0082ad0064013f01007c0c7e0000000005033f13e8033f13e6033f13e5033f13e3033f\
         13e2023f13b30001880005033f13db033f13d6033f13d6033f13d5033f13d4023f13a30003100005\
         033f13d3033f13d3033f13d2033f13ce033f13cc023f13a00004980005033f13cb033f13ca033f13\
@@ -2067,15 +2067,15 @@ fn test_decap_signalisation_tbtp() {
         Ok(e) => match e.0 {
             DecapStatus::FragmentedPkt => {}
             _ => {
-                panic!("Error when fragmenting TBTP2");
+                panic!("Error when fragmenting big table");
             }
         },
         Err(e) => {
-            panic!("Error when fragmenting TBTP2, Error {:?}", e);
+            panic!("Error when fragmenting big table, Error {:?}", e);
         }
     }
-        //second part of a TBTP
-        let pkt2 = "760d003f11e7033f11e7033f11e6033f11e4033f11e30065100004033f11e2033f11e0033f11e003\
+    //second part of a big table
+    let pkt2 = "760d003f11e7033f11e7033f11e6033f11e4033f11e30065100004033f11e2033f11e0033f11e003\
         3f11dc033f11d90066980004033f11d7033f11d6033f11d4033f11d3033f11d10068200004033f11\
         d0033f11cd033f11ca033f11c9033f11c90069a80004033f11c8033f11c7033f11c4033f11c4033f\
         11c2006b300004033f11c0033f11be033f11be033f11bc033f11b7006cb80004033f11b7033f11b6\
@@ -2122,11 +2122,11 @@ fn test_decap_signalisation_tbtp() {
                 assert_eq!(data[0..6], [173, 0, 100, 1, 63, 1,])
             }
             _ => {
-                panic!("Error when fragmenting TBTP2");
+                panic!("Error when fragmenting big table");
             }
         },
         Err(e) => {
-            panic!("Error when fragmenting TBTP2, Error {:?}", e);
+            panic!("Error when fragmenting big table, Error {:?}", e);
         }
     }
 }
