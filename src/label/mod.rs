@@ -56,9 +56,6 @@ impl Label {
         label_length
     }
 
-
-
-
     /// Create a new label based on label type and label content
     pub fn new(label_type: &LabelType, label: &[u8]) -> Label {
         if label.len() == label_type.len() {
