@@ -9,7 +9,7 @@
 
 use crate::crc::CrcCalculator;
 use crate::gse_standard::{
-    COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_FRAG_LEN, FIRST_PKT, FIRST_RANGE_PTYPE, FIXED_HEADER_LEN,
+    COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_FRAG_LEN, FIRST_PKT, SECOND_RANGE_PTYPE, FIXED_HEADER_LEN,
     FRAG_ID_LEN, GSE_LEN_MASK, GSE_LEN_MAX, INTERMEDIATE_PKT, LABEL_3_B, LABEL_6_B,
     LABEL_BROADCAST, LABEL_REUSE, LABEL_TYPE_MASK, PROTOCOL_LEN, START_END_MASK, TOTAL_LENGTH_LEN,
     TOTAL_LEN_MAX,
@@ -259,7 +259,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
         }
 
         // check protocol_type
-        if protocol_type <= FIRST_RANGE_PTYPE {
+        if protocol_type < SECOND_RANGE_PTYPE {
             return Err(EncapError::ErrorProtocolType);
         }
 
@@ -569,7 +569,7 @@ pub fn encap_preview(
     }
 
     // check protocol_type
-    if protocol_type <= FIRST_RANGE_PTYPE {
+    if protocol_type < SECOND_RANGE_PTYPE {
         return Err(EncapError::ErrorProtocolType);
     }
 

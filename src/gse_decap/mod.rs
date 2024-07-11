@@ -9,7 +9,7 @@
 
 use crate::crc::CrcCalculator;
 use crate::gse_standard::{
-    COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_PKT, FIRST_RANGE_PTYPE, FIXED_HEADER_LEN, FRAG_ID_LEN, GSE_LEN_MASK, INTERMEDIATE_PKT, INTERNAL_SIGNALING_PROTOCOL_ID, LABEL_3_B, LABEL_6_B, LABEL_BROADCAST, LABEL_REUSE, LABEL_TYPE_MASK, NCR_PROTOCOL_ID, PROTOCOL_LEN, START_END_MASK, TOTAL_LENGTH_LEN
+    COMPLETE_PKT, CRC_LEN, END_PKT, FIRST_PKT, SECOND_RANGE_PTYPE, FIXED_HEADER_LEN, FRAG_ID_LEN, GSE_LEN_MASK, INTERMEDIATE_PKT, INTERNAL_SIGNALING_PROTOCOL_ID, LABEL_3_B, LABEL_6_B, LABEL_BROADCAST, LABEL_REUSE, LABEL_TYPE_MASK, NCR_PROTOCOL_ID, PROTOCOL_LEN, START_END_MASK, TOTAL_LENGTH_LEN
 };
 use crate::label::{Label, LabelType};
 use crate::pkt_type::PktType;
@@ -300,7 +300,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         let protocol_type =
             u16::from_be_bytes(buffer[offset..offset + PROTOCOL_LEN].try_into().unwrap());
         offset += PROTOCOL_LEN;
-        if protocol_type <= FIRST_RANGE_PTYPE 
+        if protocol_type < SECOND_RANGE_PTYPE 
             && protocol_type != NCR_PROTOCOL_ID 
             && protocol_type != INTERNAL_SIGNALING_PROTOCOL_ID 
         {
@@ -423,7 +423,7 @@ impl<T: GseDecapMemory, C: CrcCalculator> Decapsulator<T, C> {
         offset += PROTOCOL_LEN;
 
         // check protocol type
-        if protocol_type <= FIRST_RANGE_PTYPE 
+        if protocol_type < SECOND_RANGE_PTYPE 
             && protocol_type != NCR_PROTOCOL_ID 
             && protocol_type != INTERNAL_SIGNALING_PROTOCOL_ID 
         {

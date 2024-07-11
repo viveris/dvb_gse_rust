@@ -38,14 +38,15 @@ pub const GSE_LEN_MASK: u16 = 0x0FFF;
 // Gse constant for total_length
 pub const TOTAL_LEN_MAX: usize = 0xFFFF;
 
-// Gse constant for protocol type
-pub const FIRST_RANGE_PTYPE: u16 = 1535;
-
 // Gse constant for CRC
 pub const CRC_LEN: usize = 4;
 pub const CRC_INIT: u32 = 0xFFFFFFFF;
 
-// Gse constant for signalling
+// GSE constant for protocol type
+// All protocols above 1535 are procesed as user trafic
+// https://www.etsi.org/deliver/etsi_ts/102600_102699/10260601/01.02.01_60/ts_10260601v010201p.pdf
+pub const SECOND_RANGE_PTYPE: u16 = 0x600;
+
 // https://www.etsi.org/deliver/etsi_en/301500_301599/30154502/01.03.01_60/en_30154502v010301p.pdf
 // Section 5.1.0
 pub const NCR_PROTOCOL_ID: u16 = 0x0081;
