@@ -757,10 +757,11 @@ impl<C: CrcCalculator> Encapsulator<C> {
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct EncapPreview {
-    pkt_type: PktType,
-    pdu_len: usize,
-    pkt_len: u16,
+    pub pkt_type: PktType,
+    pub pdu_len: usize,
+    pub pkt_len: u16,
 }
+
 
 /// Preview the encapsulation of the input data and metadata into a GSE packet.
 ///
