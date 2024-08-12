@@ -226,17 +226,17 @@ impl<T: GseDecapMemory, C: CrcCalculator, MHEM: MandatoryHeaderExtensionManager>
     ///
     /// The function decap reads the buffer to extract a packet.
     /// Nominal cases:
-    /// *   if the packet is complete, a memory buffer is taken in the GseDecapMemory and written to the pdu
-    /// and this buffer is returned as a field of CompletedPkt status.
+    /// *  if the packet is complete, a memory buffer is taken in the GseDecapMemory and written to the pdu
+    ///    and this buffer is returned as a field of CompletedPkt status.
     /// *  if the packet is a start packet, a memory buffer is taken in GseDecapMemory and the fragment of the
-    /// of the pdu and the context is stored in GseDecapMemory.
+    ///    of the pdu and the context is stored in GseDecapMemory.
     /// *  if the packet is an intermediate packet, the context in GseDecapMemory is read and
-    /// and updated.
+    ///    and updated.
     /// *  if the packet is an end packet, the context in the GseDecapMemory is taken, updated and
-    /// and returned as a file with the status CompletedPkt.
+    ///    and returned as a file with the status CompletedPkt.
     /// *  if the buffer contains 0, Padding status is returned.
-    /// in each case, it returns the offset of the buffer to apply.
-    /// Error cases:
+    ///    in each case, it returns the offset of the buffer to apply.
+    ///    Error cases:
     /// *  if the inputs are wrong, the function returns an error via the status
     ///
     /// # Example of decapsulating a gse packet
