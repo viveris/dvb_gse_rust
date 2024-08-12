@@ -16,7 +16,7 @@ use crate::gse_standard::{
     START_END_MASK, TOTAL_LENGTH_LEN,
 };
 use crate::header_extension::{
-    optionnal_extension_data_size_from_hlen, Extension, ExtensionData, MandatoryHeaderExt,
+    optionnal_extension_data_size_from_hlen, Extension, MandatoryHeaderExt,
     MandatoryHeaderExtensionManager,
 };
 use crate::label::{Label, LabelType};
@@ -33,10 +33,10 @@ mod tests;
 /// *   Protocol type describe the protocol of that pdu
 /// *   Label describe the recipient of that pdu
 pub struct DecapMetadata {
-    pub pdu_len: usize,
-    pub protocol_type: u16,
-    pub label: Label,
-    pub extensions: Vec<Extension>,
+    pdu_len: usize,
+    protocol_type: u16,
+    label: Label,
+    extensions: Vec<Extension>,
 }
 
 impl DecapMetadata {
@@ -52,6 +52,19 @@ impl DecapMetadata {
             label,
             extensions,
         }
+    }
+
+    pub fn pdu_len(&self) -> usize {
+        self.pdu_len
+    }
+    pub fn protocol_type(&self) -> u16 {
+        self.protocol_type
+    }
+    pub fn label(&self) -> Label {
+        self.label
+    }
+    pub fn extensions(&self) -> &Vec<Extension> {
+        &self.extensions
     }
 }
 
@@ -260,12 +273,13 @@ impl<T: GseDecapMemory, C: CrcCalculator, MHEM: MandatoryHeaderExtensionManager>
     /// // Finally, the pdu and the metadata received can be compared with those sent
     /// let exp_decap_status = DecapStatus::CompletedPkt(
     ///    Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-    ///    DecapMetadata {
-    ///        pdu_len: 26,
-    ///        label: Label::Broadcast,
-    ///        protocol_type: 0xFFFF,
-    /// extensions: vec![],
-    ///    },
+    ///    DecapMetadata::new(
+    ///     26,
+    ///     0xFFFF,
+
+    ///      Label::Broadcast,
+    ///     vec![],
+    ///    ),
     /// );
     /// let exp_pkt_len = 30;
     ///
@@ -880,7 +894,7 @@ pub struct IterateOverExtensionHeaderStatus {
 /// GSE reading of the header extension
 ///
 /// Return the extension read, the total size of extension (data + id) and the protocol type based on the input buffer
-pub fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
+fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
     pdu: &[u8],
     mandatory_extension_header_manager: &MHEM,
     first_ext_id: u16,
@@ -892,9 +906,7 @@ pub fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
     if pdu_len < PROTOCOL_LEN {
         return Err(ExtensionHeaderError::BufferTooSmall);
     }
-    // read protocol_type
-    //let mut protocol_type: u16 = u16::from_be_bytes(pdu[0..PROTOCOL_LEN].try_into().unwrap());
-    //offset += PROTOCOL_LEN;
+
     let mut protocol_type: u16 = first_ext_id;
 
     while protocol_type < SECOND_RANGE_PTYPE {
@@ -902,7 +914,6 @@ pub fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
         // this is an header extension
         // reading the size of the extension
         let h_len: u8 = ((protocol_type & H_LEN_MASK) >> 8).try_into().unwrap();
-
         if h_len == 0 {
             // this is a mandatory header extension
             // if we don't know this extension, we must drop the packet
@@ -913,23 +924,21 @@ pub fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
                 }
 
                 MandatoryHeaderExt::Final(size_data) => {
-                    extensions.push(Extension {
-                        id: protocol_type,
-                        data: ExtensionData::MandatoryData(
-                            pdu[offset..offset + size_data as usize].into(),
-                        ),
-                    });
+                    match Extension::new(protocol_type, &pdu[offset..offset + size_data as usize]) {
+                        Ok(extension) => extensions.push(extension),
+                        Err(_) => todo!(),
+                    };
+
                     offset += size_data as usize;
                     break; // final ->  no more extension, neither protocol type
                 }
 
                 MandatoryHeaderExt::NonFinal(size_data) => {
-                    extensions.push(Extension {
-                        id: protocol_type,
-                        data: ExtensionData::MandatoryData(
-                            pdu[offset..offset + size_data as usize].into(),
-                        ),
-                    });
+                    match Extension::new(protocol_type, &pdu[offset..offset + size_data as usize]) {
+                        Ok(extension) => extensions.push(extension),
+                        Err(_) => todo!(),
+                    };
+
                     offset += size_data as usize;
                 }
             }
@@ -943,35 +952,15 @@ pub fn iterate_over_extension_header<MHEM: MandatoryHeaderExtensionManager>(
                 // H-LEN > 5 <=> protocol type > SECOND_RANGE_PTYPE, unreachable
             };
 
-            let ext_data: ExtensionData = match current_ext_data_len {
-                0 => ExtensionData::NoData,
-                2 => ExtensionData::Data2(
-                    pdu[offset..offset + current_ext_data_len as usize]
-                        .try_into()
-                        .expect("Unreachable"),
-                ),
-                4 => ExtensionData::Data4(
-                    pdu[offset..offset + current_ext_data_len as usize]
-                        .try_into()
-                        .expect("Unreachable"),
-                ),
-                6 => ExtensionData::Data6(
-                    pdu[offset..offset + current_ext_data_len as usize]
-                        .try_into()
-                        .expect("Unreachable"),
-                ),
-                8 => ExtensionData::Data8(
-                    pdu[offset..offset + current_ext_data_len as usize]
-                        .try_into()
-                        .expect("Unreachable"),
-                ),
-                _ => unreachable!(), //optionnal_extension_data_size_from_hlen ensure that current_ext_data_len has a correct value
-            };
+            let current_ext = Extension::new(
+                protocol_type,
+                &pdu[offset..offset + current_ext_data_len as usize],
+            );
 
-            extensions.push(Extension {
-                id: protocol_type,
-                data: ext_data,
-            });
+            match current_ext {
+                Ok(extension) => extensions.push(extension),
+                Err(_) => todo!(),
+            }
             offset += current_ext_data_len as usize;
         }
         // reading protocol type for next iteration

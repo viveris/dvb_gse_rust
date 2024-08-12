@@ -6,7 +6,7 @@ use dvb_gse_rust::gse_encap::{ContextFrag, EncapMetadata, EncapStatus, Encapsula
 use dvb_gse_rust::gse_standard::{
     FIXED_HEADER_LEN, LABEL_3_B_LEN, LABEL_6_B_LEN, LABEL_REUSE_LEN, PROTOCOL_LEN,
 };
-use dvb_gse_rust::header_extension::{are_id_and_variant_corresponding, Extension, ExtensionData, MandatoryHeaderExt, MandatoryHeaderExtensionManager, SignalisationMandatoryExtensionHeaderManager, SimpleMandatoryExtensionHeaderManager};
+use dvb_gse_rust::header_extension::{are_id_and_variant_corresponding, Extension, MandatoryHeaderExt, MandatoryHeaderExtensionManager, SignalisationMandatoryExtensionHeaderManager, SimpleMandatoryExtensionHeaderManager};
 use dvb_gse_rust::label::Label;
 use std::collections::VecDeque;
 use std::vec;
@@ -127,12 +127,12 @@ fn test_encap_decap_complete_001() {
     ));
     let exp_decap_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0xFFFF,
-            label: Label::SixBytesLabel(*b"012345"),
-        },
+        DecapMetadata::new(
+            PDU_LEN,
+            0xFFFF,
+            Label::SixBytesLabel(*b"012345"),
+            vec![],
+        )
     ));
     let exp_pkt_len = FIXED_HEADER_LEN + PROTOCOL_LEN + LABEL_6_B_LEN + PDU_LEN;
 
@@ -168,12 +168,12 @@ fn test_encap_decap_complete_002() {
     ));
     let exp_decap_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0xF0F0,
-            label: Label::ThreeBytesLabel(*b"012"),
-        },
+        DecapMetadata::new(
+            PDU_LEN,
+            0xF0F0,
+            Label::ThreeBytesLabel(*b"012"),
+            vec![],
+        )
     ));
     let exp_pkt_len = FIXED_HEADER_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN;
 
@@ -247,12 +247,12 @@ fn test_encap_decap_complete_004() {
     ));
     let exp_decap_status = Ok(DecapStatus::CompletedPkt(
         Box::new(*b""),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0x0F0F,
-            label: Label::Broadcast,
-        },
+        DecapMetadata::new(
+            PDU_LEN,
+            0x0F0F,
+            Label::Broadcast,
+            vec![],
+        )
     ));
     let exp_pkt_len = FIXED_HEADER_LEN + PROTOCOL_LEN;
 
@@ -327,21 +327,21 @@ fn test_encap_decap_complete_006() {
     ));
     let exp_decap_status1 = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0xFFFF,
-            label: Label::SixBytesLabel(*b"012345"),
-        },
+        DecapMetadata::new(
+            PDU_LEN,
+            0xFFFF,
+            Label::SixBytesLabel(*b"012345"),
+            vec![],
+        )
     ));
     let exp_decap_status2 = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"zyxwvutsrqponmlkjihgfedcba"),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0xEEEE,
-            label: Label::SixBytesLabel(*b"012345"),
-        },
+        DecapMetadata::new(
+            PDU_LEN,
+            0xEEEE,
+            Label::SixBytesLabel(*b"012345"),
+            vec![],
+        )
     ));
     let exp_pkt_len = FIXED_HEADER_LEN + PROTOCOL_LEN + PDU_LEN;
 
@@ -396,21 +396,22 @@ fn test_encap_decap_complete_007() {
     ));
     let exp_decap_status1 = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0xF0F0,
-            label: Label::ThreeBytesLabel(*b"012"),
-        },
+        DecapMetadata::new(
+            PDU_LEN,
+            0xF0F0,
+            Label::ThreeBytesLabel(*b"012"),
+            vec![],
+        )
     ));
     let exp_decap_status2 = Ok(DecapStatus::CompletedPkt(
         Box::new(*b"zyxwvutsrqponmlkjihgfedcba"),
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: PDU_LEN,
-            protocol_type: 0xFF00,
-            label: Label::ThreeBytesLabel(*b"012"),
-        },
+            DecapMetadata::new(
+                PDU_LEN,
+                0xFF00,
+                Label::ThreeBytesLabel(*b"012"),
+                vec![],
+            )
+
     ));
     let exp_pkt_len = FIXED_HEADER_LEN + PROTOCOL_LEN + PDU_LEN;
 
@@ -522,26 +523,27 @@ fn test_encap_decap_frag_001() {
     ];
 
     let exp_decap_status = vec![
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+
+        DecapStatus::FragmentedPkt(        DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(        DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
+            vec![],
+        )),
         DecapStatus::CompletedPkt(
             Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-            DecapMetadata {
-                extensions: vec![],
-                pdu_len,
+            DecapMetadata::new(
+                26,
                 protocol_type,
                 label,
-            },
+                vec![],
+            ),
         ),
     ];
 
@@ -589,20 +591,20 @@ fn test_encap_decap_frag_002() {
     ];
 
     let exp_decap_status = vec![
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
+            vec![],
+        )),
         DecapStatus::CompletedPkt(
             Box::new(*b"abcdefghijklmnopqrstuvwxyz"),
-            DecapMetadata {
-                extensions: vec![],
-                pdu_len,
+            DecapMetadata::new(
+                26,
                 protocol_type,
                 label,
-            },
+                vec![],
+            ),
         ),
     ];
 
@@ -696,68 +698,68 @@ eu amet.";
     ];
 
     let exp_decap_status = vec![
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
             protocol_type,
             label,
-        }),
+            vec![],
+        )),
         DecapStatus::CompletedPkt(
             Box::new(pdu.to_owned()),
-            DecapMetadata {
-                extensions: vec![],
-                pdu_len,
+            DecapMetadata::new(
+                pdu.len(),
                 protocol_type,
                 label,
-            },
+                vec![],
+            ),
         ),
     ];
 
@@ -834,8 +836,8 @@ macro_rules! test_encap_decap_multiple_frag {
                     DecapStatus::CompletedPkt(obs_pdu, obs_metadata),
                 ) => {
                     assert_eq!(
-                        exp_pdu[..obs_metadata.pdu_len],
-                        obs_pdu[..obs_metadata.pdu_len]
+                        exp_pdu[..obs_metadata.pdu_len()],
+                        obs_pdu[..obs_metadata.pdu_len()]
                     );
                     assert_eq!(obs_metadata, exp_metadata, "{}", $comment);
                 }
@@ -867,45 +869,45 @@ fn test_encap_decap_multiple_frag_001() {
     ];
 
     let decap_metadata: [DecapMetadata; 2] = [
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: pdus[0].len(),
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        },
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: pdus[0].len(),
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        },
+        DecapMetadata::new(
+            26,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        ),
+    DecapMetadata::new(
+            26,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        ),
     ];
 
     let exp_decap_status = [
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        }),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
         DecapStatus::CompletedPkt(pdus[1].clone(), decap_metadata[1].clone()),
         DecapStatus::CompletedPkt(pdus[0].clone(), decap_metadata[0].clone()),
     ];
@@ -944,39 +946,44 @@ fn test_encap_decap_multiple_frag_002() {
     ];
 
     let decap_metadata: [DecapMetadata; 2] = [
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: pdus[0].len(),
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        },
-        DecapMetadata {
-            extensions: vec![],
-            pdu_len: pdus[0].len(),
-            label: Label::SixBytesLabel(*b"123456"),
-            protocol_type: 0x1234,
-        },
+        DecapMetadata::new(
+            pdus[0].len(),
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+
+            vec![],
+
+        ),
+        DecapMetadata::new(
+            pdus[0].len(),
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+
+            vec![],
+
+        ),
+
     ];
 
     let exp_decap_status = [
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            protocol_type: 0x1234,
-            label: Label::SixBytesLabel(*b"123456"),
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            protocol_type: 0x1234,
-            label: Label::SixBytesLabel(*b"123456"),
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            pdu_len: 0,
-            protocol_type: 0x1234,
-            label: Label::SixBytesLabel(*b"123456"),
-        }),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
         DecapStatus::CompletedPkt(pdus[0].clone(), decap_metadata[0].clone()),
         DecapStatus::CompletedPkt(pdus[1].clone(), decap_metadata[1].clone()),
     ];
@@ -1056,227 +1063,258 @@ risus dictum imperdiet. "
     ];
 
     let decap_metadata: [DecapMetadata; 4] = [
-        DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: pdus[0].len(),
-            protocol_type: 0x4242,
-        },
-        DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: pdus[1].len(),
-            protocol_type: 0x1234,
-        },
-        DecapMetadata {
-            extensions: vec![],
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: pdus[2].len(),
-            protocol_type: 0x9999,
-        },
-        DecapMetadata {
-            extensions: vec![],
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: pdus[3].len(),
-            protocol_type: 0x1111,
-        },
+        DecapMetadata::new(
+            pdus[0].len(),
+            0x4242,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        ),
+        DecapMetadata::new(
+            pdus[1].len(),
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        ),
+        DecapMetadata::new(
+            pdus[2].len(),
+            0x9999,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        ),
+
+        DecapMetadata::new(
+            pdus[3].len(),
+            0x1111,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )
     ];
     let exp_decap_status = [
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 0
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 1
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x9999,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 2
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 3
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 4
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 5
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x9999,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 6
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 7
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 8
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 9
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x9999,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 10
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 11
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 12
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 13
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x9999,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 14
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 15
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 16
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 17
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x9999,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 14
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 15
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 16
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 17
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x9999,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 22
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 23
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 24
-            label: Label::ThreeBytesLabel(*b"123"),
-            pdu_len: 0,
-            protocol_type: 0x1111,
-        }),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x1111,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x9999,
+                Label::ThreeBytesLabel(*b"123"),
+                vec![],
+            )),
+            DecapStatus::FragmentedPkt(
+                DecapMetadata::new(
+                    0,
+                    0x1234,
+                    Label::SixBytesLabel(*b"123456"),
+                    vec![],
+                )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x4242,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
+            DecapStatus::FragmentedPkt(DecapMetadata::new(
+                0,
+                0x1111,
+                Label::ThreeBytesLabel(*b"123"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x9999,
+                Label::ThreeBytesLabel(*b"123"),
+                vec![],
+            )),
+            DecapStatus::FragmentedPkt(
+                DecapMetadata::new(
+                    0,
+                    0x1234,
+                    Label::SixBytesLabel(*b"123456"),
+                    vec![],
+                )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x4242,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x1111,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x9999,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x4242,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x1111,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x9999,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x4242,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x1111,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x9999,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x1234,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+        DecapMetadata::new(
+            0,
+            0x4242,
+            Label::SixBytesLabel(*b"123456"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x1111,
+                Label::ThreeBytesLabel(*b"123"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(DecapMetadata::new(
+            0,
+            0x9999,
+            Label::ThreeBytesLabel(*b"123"),
+            vec![],
+        )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x1234,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )
+        ),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x4242,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x1111,
+                Label::ThreeBytesLabel(*b"123"),
+                vec![],
+            )),
         DecapStatus::CompletedPkt(pdus[2].clone(), decap_metadata[2].clone()),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![], // 25
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x1234,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x4242,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
         DecapStatus::CompletedPkt(pdus[3].clone(), decap_metadata[3].clone()),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x1234,
-        }),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x1234,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x4242,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x1234,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x4242,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
         DecapStatus::CompletedPkt(pdus[1].clone(), decap_metadata[1].clone()),
-        DecapStatus::FragmentedPkt(DecapMetadata {
-            extensions: vec![],
-            label: Label::SixBytesLabel(*b"123456"),
-            pdu_len: 0,
-            protocol_type: 0x4242,
-        }),
+        DecapStatus::FragmentedPkt(
+            DecapMetadata::new(
+                0,
+                0x4242,
+                Label::SixBytesLabel(*b"123456"),
+                vec![],
+            )),
         DecapStatus::CompletedPkt(pdus[0].clone(), decap_metadata[0].clone()),
     ];
 
@@ -1315,10 +1353,10 @@ fn test_encap_decap_complete_ext_001() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1352,10 +1390,10 @@ fn test_encap_decap_complete_ext_002() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1390,10 +1428,10 @@ fn test_encap_decap_complete_ext_003() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1428,10 +1466,10 @@ fn test_encap_decap_complete_ext_004() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1465,10 +1503,10 @@ fn test_encap_decap_complete_ext_005() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1515,10 +1553,10 @@ fn test_encap_decap_complete_ext_006() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1544,7 +1582,7 @@ fn test_encap_decap_complete_ext_007() {
 
     let extension1 = Extension::new(0x0081, &[]).unwrap(); // 0x0081 is the ID of NCR in DVB-RCS2
     
-    let metadata_in = EncapMetadata::new(extension1.id, Label::SixBytesLabel(*b"012345"));
+    let metadata_in = EncapMetadata::new(extension1.id(), Label::SixBytesLabel(*b"012345"));
     let extensions = vec![extension1];
 
     let exp_extensions = extensions.clone();
@@ -1555,10 +1593,10 @@ fn test_encap_decap_complete_ext_007() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1583,7 +1621,7 @@ fn test_encap_decap_complete_ext_008() {
     let id_final_ext = 0x0081;
     let metadata_in = EncapMetadata::new(id_final_ext, Label::SixBytesLabel(*b"012345"));
 
-    let exp_extensions = vec![Extension {id: id_final_ext, data : ExtensionData::MandatoryData(vec![])}];
+    let exp_extensions = vec![Extension::new(id_final_ext,&[]).unwrap()];
 
     let _ = encapsulator.encap(pdu_in, 4, metadata_in, &mut buffer);
     let status_decap = decapsulator.decap(&buffer);
@@ -1591,10 +1629,10 @@ fn test_encap_decap_complete_ext_008() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}",res.0)
 
@@ -1635,10 +1673,10 @@ fn test_encap_decap_complete_ext_009() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected DecapStatus::CompletedPkt but got {:?}", res.0)
 
@@ -1731,10 +1769,10 @@ fn test_encap_decap_complete_ext_011() {
     match status_decap {
         Ok(res) => match res.0 {
             DecapStatus::CompletedPkt(pdu_out, metadata_out) => {
-                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len],"pdu differ");
-                assert_eq!(metadata_in.label,metadata_out.label,"labels differ");
-                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type,"protocol types differ");
-                assert_eq!(exp_extensions,metadata_out.extensions,"extensions differ");
+                assert_eq!(pdu_in, &pdu_out[..metadata_out.pdu_len()],"pdu differ");
+                assert_eq!(metadata_in.label,metadata_out.label(),"labels differ");
+                assert_eq!(metadata_in.protocol_type,metadata_out.protocol_type(),"protocol types differ");
+                assert_eq!(exp_extensions,*metadata_out.extensions(),"extensions differ");
             }
             _ => panic!("Expected CompletedPkt but got status {:?}",res),
 

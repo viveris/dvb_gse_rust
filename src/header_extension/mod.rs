@@ -76,9 +76,11 @@ pub type ExtID = u16;
 ///
 /// 
 pub struct Extension {
-    pub id: ExtID,
-    pub data: ExtensionData,
+    id: ExtID,
+    data: ExtensionData,
 }
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// enumeration ExtensionData : stores the data of the extension
 /// Data can be 0, 2, 4, 6, 8 bytes depending on H-LEN for optionnal header extension
@@ -139,6 +141,15 @@ impl Extension {
             _ => unreachable!(),
         }
     }
+
+    //getters
+        pub fn id(&self) -> ExtID {
+            self.id
+        }
+    
+        pub fn data(&self) -> &ExtensionData {
+            &self.data
+        }
 }
 
 

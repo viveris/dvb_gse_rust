@@ -48,9 +48,9 @@ impl EncapMetadata {
 /// *   Crc describe the cyclic redundancy check
 /// *   Len pdu frag describe the len of the pdu already written
 pub struct ContextFrag {
-    pub frag_id: u8,
-    pub crc: u32,
-    pub len_pdu_frag: u16,
+    frag_id: u8,
+    crc: u32,
+    len_pdu_frag: u16,
 }
 
 impl ContextFrag {
@@ -60,6 +60,19 @@ impl ContextFrag {
             crc,
             len_pdu_frag,
         }
+    }
+
+    //getters
+    pub fn frag_id(&self) -> u8 {
+        self.frag_id
+    }
+
+    pub fn crc(&self) -> u32 {
+        self.crc
+    }
+
+    pub fn len_pdu_frag(&self) -> u16 {
+        self.len_pdu_frag
     }
 }
 
@@ -216,7 +229,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
     /// // Thus, the buffer can be fulfilled with a fragment of the payload encapsulated in a gse packet
     /// let encap_status = encapsulator.encap(pdu, default_frag_id, metadata, &mut buffer);
     /// let crc = DefaultCrc{}.calculate_crc32(&pdu[..], protocol_type, (pdu.len()+label.len()+2).try_into().unwrap(), label.get_bytes());
-    /// let exp_encap_status = Ok(EncapStatus::FragmentedPkt(20, ContextFrag{ frag_id: default_frag_id, crc, len_pdu_frag: 7 }));
+    /// let exp_encap_status = Ok(EncapStatus::FragmentedPkt(20, ContextFrag::new( default_frag_id, crc, 7 )));
     /// assert_eq!(encap_status, exp_encap_status);
     ///
     /// ```
@@ -393,7 +406,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
     /// let default_crc = 1;
     /// let len_pdu_frag= 1;
     /// let pdu = *b"-abcdefghijklmnopqrstuvwxyz";
-    /// let context_frag = ContextFrag{ frag_id: default_frag_id, crc: default_crc, len_pdu_frag };
+    /// let context_frag = ContextFrag::new( default_frag_id, default_crc, len_pdu_frag);
     ///
     /// // The packet has to be written in a buffer
     /// let mut buffer = [0; 1000];
@@ -417,7 +430,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
     /// let default_crc = 1;
     /// let len_pdu_frag= 1;
     /// let pdu = *b"-abcdefghijklmnopqrstuvwxyz";
-    /// let context_frag = ContextFrag{ frag_id: default_frag_id, crc: default_crc, len_pdu_frag };
+    /// let context_frag = ContextFrag::new( default_frag_id, default_crc, len_pdu_frag );
     ///
     /// // The packet has to be written in a buffer
     /// let mut buffer = [0; 10];
@@ -427,7 +440,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
     ///
     /// // Thus, the buffer can be fulfilled with the payload encapsulated in a gse packet
     /// let encap_status = encapsulator.encap_frag(&pdu, &context_frag, &mut buffer);
-    /// let exp_encap_status = Ok(EncapStatus::FragmentedPkt(10, ContextFrag{ frag_id: default_frag_id, crc: default_crc, len_pdu_frag: len_pdu_frag + 7 }));
+    /// let exp_encap_status = Ok(EncapStatus::FragmentedPkt(10, ContextFrag::new(default_frag_id, default_crc, len_pdu_frag + 7 )));
     /// assert_eq!(encap_status, exp_encap_status);
     ///  ```
     ///
@@ -442,7 +455,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
     /// let default_crc = 1;
     /// let len_pdu_frag= 1;
     /// let pdu = *b"-abcdefghijklmnopqrstuvwxyz";
-    /// let context_frag = ContextFrag{ frag_id: default_frag_id, crc: default_crc, len_pdu_frag };
+    /// let context_frag = ContextFrag::new( default_frag_id, default_crc, len_pdu_frag);
     ///
     /// // The packet has to be written in a buffer
     /// let mut buffer = [0; 2];
@@ -556,9 +569,9 @@ impl<C: CrcCalculator> Encapsulator<C> {
         if protocol_type < MAX_MANDATORY_VAL_PTYPE {
             // the mandatory header extension replaces the protocol type
             // checking if the last extension id corresponds to this protocol type
-            if extensions.last().unwrap().id != protocol_type
+            if extensions.last().unwrap().id() != protocol_type
                 && matches!(
-                    extensions.last().unwrap().data,
+                    extensions.last().unwrap().data(),
                     ExtensionData::MandatoryData(..)
                 )
             {
@@ -568,7 +581,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
         } else if protocol_type < SECOND_RANGE_PTYPE {
             return Err(EncapError::ErrorProtocolType);
         }
-        
+
         for extension in &extensions {
             total_len_extensions += extension.len()
         }
@@ -678,16 +691,15 @@ impl<C: CrcCalculator> Encapsulator<C> {
         // write protocol type
 
         // write first header extension id instead of protocol type
-        buffer[offset..offset + PROTOCOL_LEN].copy_from_slice(&extensions[0].id.to_be_bytes());
+        buffer[offset..offset + PROTOCOL_LEN].copy_from_slice(&extensions[0].id().to_be_bytes());
         offset += PROTOCOL_LEN;
 
         // write label
         buffer[offset..offset + label_len].copy_from_slice(label.get_bytes());
         offset += label_len;
 
-        
         for i in 0..extensions.len() - 1 {
-            match &extensions[i].data {
+            match &extensions[i].data() {
                 //refactor?
                 ExtensionData::Data2(inner) => {
                     buffer[offset..offset + inner.len()].copy_from_slice(inner);
@@ -710,16 +722,16 @@ impl<C: CrcCalculator> Encapsulator<C> {
                 ExtensionData::MandatoryData(inner) => {
                     buffer[offset..offset + inner.len()].copy_from_slice(inner);
                     offset += inner.len();
-                } 
+                }
             }
 
             buffer[offset..offset + PROTOCOL_LEN]
-                .copy_from_slice(&extensions[i + 1].id.to_be_bytes());
+                .copy_from_slice(&extensions[i + 1].id().to_be_bytes());
             offset += PROTOCOL_LEN;
         }
 
         // writting last extension data
-        match &extensions.last().unwrap().data {
+        match &extensions.last().unwrap().data() {
             //refactor?
             ExtensionData::Data2(inner) => {
                 buffer[offset..offset + inner.len()].copy_from_slice(inner);
@@ -741,7 +753,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
             ExtensionData::MandatoryData(inner) => {
                 buffer[offset..offset + inner.len()].copy_from_slice(inner);
                 offset += inner.len();
-            } 
+            }
         }
 
         if !is_there_final_mandatory_extension {
@@ -757,12 +769,22 @@ impl<C: CrcCalculator> Encapsulator<C> {
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct EncapPreview {
-    pub pkt_type: PktType,
-    pub pdu_len: usize,
-    pub pkt_len: u16,
+    pkt_type: PktType,
+    pdu_len: usize,
+    pkt_len: u16,
 }
 
-
+impl EncapPreview {
+    pub fn pkt_type(&self) -> PktType {
+        self.pkt_type
+    }
+    pub fn pdu_len(&self) -> usize {
+        self.pdu_len
+    }
+    pub fn pkt_len(&self) -> u16 {
+        self.pkt_len
+    }
+}
 /// Preview the encapsulation of the input data and metadata into a GSE packet.
 ///
 /// Given a Protocol Data Unit (PDU), label, protocol type, and a buffer,
