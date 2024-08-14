@@ -40,7 +40,7 @@ pub const TOTAL_LEN_MAX: usize = 0xFFFF;
 
 // Gse constant for CRC
 pub const CRC_LEN: usize = 4;
-pub const CRC_INIT: u32 = 0xFFFFFFFF;
+pub const CRC_INIT: u32 = 0xFFFF_FFFF;
 
 // GSE constant for protocol type
 // All protocols above 1535 are procesed as user trafic

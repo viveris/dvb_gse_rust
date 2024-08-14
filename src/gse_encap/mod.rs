@@ -25,7 +25,7 @@ use crate::header_extension::{Extension, ExtensionData};
 mod tests;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-/// Structure PayloadMetadata
+/// Contains Metadata used for encapsulation
 ///
 /// *   Protocol type describe the protocol of that pdu
 /// *   Label describe the recipient of that pdu
@@ -43,7 +43,7 @@ impl EncapMetadata {
     }
 }
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-/// Structure ContextFrag : Define the context of the fragmentation
+/// Define the context of the fragmentation
 /// *   Frag Id describe the fragment id
 /// *   Crc describe the cyclic redundancy check
 /// *   Len pdu frag describe the len of the pdu already written
@@ -74,7 +74,7 @@ impl ContextFrag {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-/// Enumeration EncapStatus : Define the status of the encapsulation.
+/// Define the status of the encapsulation.
 /// If a pdu is encapsulated, the status return the length of the packet by the option completed packet.
 pub enum EncapStatus {
     CompletedPkt(u16),
@@ -132,8 +132,8 @@ impl EncapError {
 ///
 /// The object oriented structure Encapsulator saves the trait of crc calculation and allows an autonomous use of the Re Use Label.
 ///
-/// When "re_use_activated" is true : the autonomous use of Re Use Label is enable.
-/// Then, if the label of the pdu is 3 or 6 Bytes and it is the same as last_label, the label sent in the next packet will be a Re Use Label.
+/// When `re_use_activated` is true : the autonomous use of Re Use Label is enable.
+/// Then, if the label of the pdu is 3 or 6 Bytes and it is the same as `last_label`, the label sent in the next packet will be a Re Use Label.
 /// Else, the last label is update.
 ///
 /// The last label has to be reset by the user at the begining of each new base band frame.
@@ -586,13 +586,13 @@ impl<C: CrcCalculator> Encapsulator<C> {
             {
                 return Err(EncapError::ErrorFinalMandatoryExtensionHeader);
             }
-            is_there_final_mandatory_extension = true
+            is_there_final_mandatory_extension = true;
         } else if protocol_type < SECOND_RANGE_PTYPE {
             return Err(EncapError::ErrorProtocolType);
         }
 
         for extension in &extensions {
-            total_len_extensions += extension.len()
+            total_len_extensions += extension.len();
         }
 
         if is_there_final_mandatory_extension {
@@ -870,8 +870,8 @@ pub fn encap_preview(
     }
 
     Ok(EncapPreview {
-        pdu_len,
         pkt_type,
+        pdu_len,
         pkt_len,
     })
 }

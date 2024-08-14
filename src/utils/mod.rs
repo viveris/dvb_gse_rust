@@ -33,7 +33,7 @@ pub struct GseCompletePacket<'a> {
 }
 
 impl<'a> GseCompletePacket<'a> {
-    pub fn new(gse_len: u16, protocol_type: u16, label: Label, pdu: &'a [u8]) -> Self {
+    #[must_use] pub fn new(gse_len: u16, protocol_type: u16, label: Label, pdu: &'a [u8]) -> Self {
         Self {
             gse_len,
             protocol_type,
@@ -103,7 +103,7 @@ pub struct GseFirstFragPacket<'a> {
 }
 
 impl<'a> GseFirstFragPacket<'a> {
-    pub fn new(
+    #[must_use] pub fn new(
         gse_len: u16,
         frag_id: u8,
         total_length: u16,

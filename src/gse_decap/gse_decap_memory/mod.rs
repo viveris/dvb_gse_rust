@@ -30,32 +30,32 @@ pub type MemoryContext = (DecapContext, Box<[u8]>);
 
 /// Trait defining the function required by the decap memory struct.
 pub trait GseDecapMemory {
-    /// Create a new empty DecapMemory
+    /// Create a new empty `DecapMemory`
     fn new(max_frag_id: usize, max_pdu_size: usize, max_delay: usize, max_pdu_frag: usize) -> Self;
 
     /// Provision of a storage buffer for the decap memory for writing purposes.
-    /// If there is not enough place, it should return StorageOverflow Error.
-    /// If the storage is too small, it sould return BufferTooSmall Error.
+    /// If there is not enough place, it should return `StorageOverflow` Error.
+    /// If the storage is too small, it sould return `BufferTooSmall` Error.
     fn provision_storage(&mut self, storage: Box<[u8]>) -> Result<(), DecapMemoryError>;
 
     /// Returns a memory buffer from memory without context,
     /// should only be used for a complete packet.
-    /// If there is not storage available it should return a StorageUnderflow Error.
+    /// If there is not storage available it should return a `StorageUnderflow` Error.
     fn new_pdu(&mut self) -> Result<Box<[u8]>, DecapMemoryError>;
 
     /// Take a buffer in memory and reserve it for a specific context.
     /// If there is already a frag, it should replace it and steal is storage.
-    /// If there is no storage available it should return a StorageUnderflow Error.
+    /// If there is no storage available it should return a `StorageUnderflow` Error.
     fn new_frag(&mut self, context: DecapContext) -> Result<MemoryContext, DecapMemoryError>;
 
-    /// Take an existing context attached to a frag_id.
+    /// Take an existing context attached to a `frag_id`.
     /// This function is used to continue the defragmentation.
-    /// If the frag_id isn't stored, it should return a UndefinedId.
+    /// If the `frag_id` isn't stored, it should return a `UndefinedId`.
     fn take_frag(&mut self, frag_id: u8) -> Result<MemoryContext, DecapMemoryError>;
 
     /// Save an existing context.
     /// Should be called after `take_context` or `new_context` to save the current state.
-    /// If there is already a fragment saved it should return an MemoryCorrupted Error.
+    /// If there is already a fragment saved it should return an `MemoryCorrupted` Error.
     fn save_frag(&mut self, context: MemoryContext) -> Result<(), DecapMemoryError>;
 }
 

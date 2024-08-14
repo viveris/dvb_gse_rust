@@ -202,7 +202,7 @@ pub enum MandatoryHeaderExt {
 /// Trait defining which mandatory extension are known by the receiver (and their data length).
 pub trait MandatoryHeaderExtensionManager {
     /// For each known mandatory header extension, it should return the size of the data following this header extension.
-    /// should return MandatoryHeaderExt::Unknown if the extension is unknown
+    /// should return `MandatoryHeaderExt::Unknown` if the extension is unknown
     fn is_mandatory_header_id_known(&self, id: u16) -> MandatoryHeaderExt;
 }
 
@@ -231,8 +231,7 @@ pub struct SignalisationMandatoryExtensionHeaderManager {}
 impl MandatoryHeaderExtensionManager for SignalisationMandatoryExtensionHeaderManager {
     fn is_mandatory_header_id_known(&self, id: u16) -> MandatoryHeaderExt {
         match id {
-            NCR_PROTOCOL_ID => MandatoryHeaderExt::Final(0),
-            INTERNAL_SIGNALING_PROTOCOL_ID => MandatoryHeaderExt::Final(0),
+            INTERNAL_SIGNALING_PROTOCOL_ID | NCR_PROTOCOL_ID => MandatoryHeaderExt::Final(0),
             _ => MandatoryHeaderExt::Unknown,
         }
     }
@@ -246,7 +245,7 @@ impl MandatoryHeaderExtensionManager for SignalisationMandatoryExtensionHeaderMa
 pub(crate)  enum HlenError {
     /// Indicates that the h-len given correspond to a mandatory header extension, so the size of the data can not be obtain from it.
     MandatoryHeader,
-    /// Indicates that HLen provided exceed the maximum value for an extension (5), probably a protocol type.
+    /// Indicates that `HLen` provided exceed the maximum value for an extension (5), probably a protocol type.
     UnknownHLen,
 }
 

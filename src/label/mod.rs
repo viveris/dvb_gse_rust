@@ -80,8 +80,7 @@ impl Label {
         let label: &[u8] = match self {
             Label::SixBytesLabel(label) => label,
             Label::ThreeBytesLabel(label) => label,
-            Label::Broadcast => &[],
-            Label::ReUse => &[],
+            Label::Broadcast | Label::ReUse => &[],
         };
         label
     }
