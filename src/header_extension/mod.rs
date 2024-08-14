@@ -243,22 +243,11 @@ impl MandatoryHeaderExtensionManager for SignalisationMandatoryExtensionHeaderMa
 /// Errors returned by [`optionnal_extension_data_size_from_hlen`] function when it fails.
 ///
 /// This enum is intended to be used as the `Err` variant in a `Result` type.
-pub enum HlenError {
+pub(crate)  enum HlenError {
     /// Indicates that the h-len given correspond to a mandatory header extension, so the size of the data can not be obtain from it.
     MandatoryHeader,
     /// Indicates that HLen provided exceed the maximum value for an extension (5), probably a protocol type.
-    UnknownHLen(u8),
-}
-
-impl HlenError {
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            Self::MandatoryHeader => "Mandatory Extension Header, can not get the size of its data",
-            Self::UnknownHLen(_) => {
-                "H_LEN doesn't correspond to a header extension, this is a protocol type"
-            }
-        }
-    }
+    UnknownHLen,
 }
 
 #[inline(always)]
@@ -273,7 +262,7 @@ impl HlenError {
 /// * `Ok(usize)` - the size of header extension data (in bytes)
 /// * `Err(HlenError::MandatoryHeader)` - if this is a mandatory extension (h_len = 0)
 /// * `Err(HlenError::UnknownHLe)` - if H_LEN doesn't correspond to a header extension (i.e. H-LEN > 5) 
-pub fn optionnal_extension_data_size_from_hlen(h_len: u8) -> Result<usize, HlenError> { //todo p
+pub(crate) fn optionnal_extension_data_size_from_hlen(h_len: u8) -> Result<usize, HlenError> { //todo p
     match h_len {
         0 => Err(HlenError::MandatoryHeader),
         1 => Ok(0),
@@ -281,6 +270,6 @@ pub fn optionnal_extension_data_size_from_hlen(h_len: u8) -> Result<usize, HlenE
         3 => Ok(4),
         4 => Ok(6),
         5 => Ok(8),
-        _ => Err(HlenError::UnknownHLen(h_len)),
+        _ => Err(HlenError::UnknownHLen),
     }
 }
