@@ -878,7 +878,7 @@ pub enum GetLabelorFragIdError {
     ErrLabelReuse,
     ErrSizeBuffer,
     ErrHeaderRead,
-    ErrorUnkownMandatoryHeader, // TODO unused
+    ErrorUnkownMandatoryHeader,
 }
 
 impl GetLabelorFragIdError {
