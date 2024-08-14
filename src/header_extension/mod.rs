@@ -284,38 +284,3 @@ pub fn optionnal_extension_data_size_from_hlen(h_len: u8) -> Result<usize, HlenE
         _ => Err(HlenError::UnknownHLen(h_len)),
     }
 }
-
-#[derive(Debug)]
-/// Error returned by [`are_id_and_variant_corresponding`] function when it fails.
-///
-/// This enum is intended to be used as the `Err` variant in a `Result` type.
-pub enum AreIdAndVariantCorrespondingError {
-/// Indicates that the extension given is not an optionnal extension but a mandatory extension header.
-    NotAnOptionnalHeaderExtensionId,
-}
-/// This function check if the optionnal extension given is correct i.e. the extension Id and the extension variant are corresponding.
-/// 
-/// # Arguments
-///
-/// * `ext` - (`&Extension`) the extension to check
-/// 
-/// # Returns
-/// * `Ok(bool)` - `true` if the id and the variant are corresponding,  `false` otherwise
-/// * `Err(AreIdAndVariantCorrespondingError::NotAnOptionnalHeaderExtensionId)` - if this is a not an optionnal header extension id
-pub fn are_id_and_variant_corresponding(
-    ext: &Extension,
-) -> Result<bool, AreIdAndVariantCorrespondingError> {
-    let len = match optionnal_extension_data_size_from_hlen((ext.id >> 8).try_into().unwrap()) {
-        Ok(l) => l,
-        Err(_) => return Err(AreIdAndVariantCorrespondingError::NotAnOptionnalHeaderExtensionId),
-    };
-
-    match len {
-        0 => Ok(matches!(ext.data, ExtensionData::NoData)),
-        2 => Ok(matches!(ext.data, ExtensionData::Data2(..))),
-        4 => Ok(matches!(ext.data, ExtensionData::Data4(..))),
-        6 => Ok(matches!(ext.data, ExtensionData::Data6(..))),
-        8 => Ok(matches!(ext.data, ExtensionData::Data8(..))),
-        _ => Err(AreIdAndVariantCorrespondingError::NotAnOptionnalHeaderExtensionId),
-    }
-}

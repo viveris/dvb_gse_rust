@@ -6,7 +6,7 @@ use dvb_gse_rust::gse_encap::{ContextFrag, EncapMetadata, EncapStatus, Encapsula
 use dvb_gse_rust::gse_standard::{
     FIXED_HEADER_LEN, LABEL_3_B_LEN, LABEL_6_B_LEN, LABEL_REUSE_LEN, PROTOCOL_LEN,
 };
-use dvb_gse_rust::header_extension::{are_id_and_variant_corresponding, Extension, MandatoryHeaderExt, MandatoryHeaderExtensionManager, SignalisationMandatoryExtensionHeaderManager, SimpleMandatoryExtensionHeaderManager};
+use dvb_gse_rust::header_extension::{Extension, MandatoryHeaderExt, MandatoryHeaderExtensionManager, SignalisationMandatoryExtensionHeaderManager, SimpleMandatoryExtensionHeaderManager};
 use dvb_gse_rust::label::Label;
 use std::collections::VecDeque;
 use std::vec;
@@ -1542,10 +1542,6 @@ fn test_encap_decap_complete_ext_006() {
 
 
     let exp_extensions = extensions.clone();
-    
-    for extension in &extensions{
-        assert_eq!(are_id_and_variant_corresponding(extension).expect("Wrong HLEN"), true,"bad id for this extension {:?}",extension);
-    };
 
     let _ = encapsulator.encap_ext(pdu_in, 4, metadata_in, &mut buffer, extensions);
     let status_decap = decapsulator.decap(&buffer);
