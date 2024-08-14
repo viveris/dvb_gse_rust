@@ -25,4 +25,7 @@ Each of these modules is tested individually in their respective `tests.rs` file
 See [lib.rs](src/lib.rs).
 
 ## Tests
-Tests can be found in the [tests](tests) repository. Launch it using `cargo test`
+Tests can be found in the [tests](tests) repository. Launch it using `cargo test`.
+
+## Documentation
+Documentation can be generated using `cargo doc`. You can access it by loading `/target/doc/index.html` in your browser.
