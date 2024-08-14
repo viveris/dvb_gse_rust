@@ -1,7 +1,7 @@
 // Copyright 2023, Viveris Technologies
 // Distributed under the terms of the MIT License
 
-//! Module for gse decapsulation
+//! Module for GSE decapsulation
 //!
 //! The decapsulation module follows the dvb gse standard.
 //! It supports complete packet, first fragment packet, intermediate fragment packet, end fragment packet and padding.
@@ -27,8 +27,8 @@ pub mod gse_decap_memory;
 mod tests;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-/// Structure PayloadMetadata
-///
+/// Store the Metadata read from GSE packet
+/// 
 /// *   Pdu length describe the length of the pdu store in a buffer
 /// *   Protocol type describe the protocol of that pdu
 /// *   Label describe the recipient of that pdu
@@ -69,8 +69,8 @@ impl DecapMetadata {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-/// Enumeration DecapStatus : Define the status of the decapsulation.
-///
+/// Define the status of the decapsulation.
+/// TODO developp variant
 /// If a pdu is completely decapsulated, the status return a by payload the option completed packet.
 /// Else, if the decapsulation failed, the status return a comment about the error that occured.
 pub enum DecapStatus {
@@ -90,21 +90,45 @@ impl DecapStatus {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-/// Enumeration DecapError
+/// Errors returned by [`Decapsulator::decap`] function when it fails.
 ///
-/// The decapsulation failed, the status return a comment about the error that occured.
+/// This enum is used as the `Err` variant in a `Result` type.
+
 pub enum DecapError {
+    /// Indicates that the output buffer is too small to accommodate the decapsulated packet.
     ErrorSizeBuffer,
+
+    /// Indicates that the Total Length field read from from first fragment doesn't correspond to the length of all the reconstitued packet.
     ErrorTotalLength,
+
+    /// Indicates that the input buffer length (containing the packet to decapsulate) is too small comparing to GSE LEN field read from packet.
     ErrorGseLength,
+
+    /// Indicates that the input buffer length (containing the packet to decapsulate) is too small comparing to what is expected.
     ErrorSizePduBuffer,
+
+    /// Indicates that the protocol type read is invalid.
     ErrorProtocolType,
+
+    /// Indicates that something went wrong with the decapsulator memory. Refers to [`DecapMemoryError`] for more informations.
     ErrorMemory(DecapMemoryError),
+
+    /// Indicates that CRC computed doesn't correspond to the CRC field.
     ErrorCrc,
+
+    /// Indicates that the label read is a Six-Byte Label `{0, 0, 0, 0, 0, 0}`, which should only be used for padding purposes but Start and End bits are not 0.
     ErrorInvalidLabel,
+
+    /// Indicates that the label read is a Reuse Label but no label has been used in the same BBFrame.
     ErrorNoLabelSaved,
+
+    /// Indicates that the label read is a Reuse Label but a broadcast label has been saved.
     ErrorLabelBroadcastSaved,
+
+    /// Indicates that the label read is a Reuse Label but a Reuse label has been saved.
     ErrorLabelReUseSaved,
+
+    /// Indicates that a unknown mandatory extension has been read, so the packet should be dropped.
     ErrorUnkownMandatoryHeader,
 }
 
@@ -138,8 +162,6 @@ impl DecapError {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-/// Structure DecapContext
-///
 /// Represents the information needed to continue decapsulation :
 /// *   This structure is initialised after the decapsulation of a start fragment and maintained until the end fragment.
 /// *   Label, protocol type, total len are read in the first fragment
@@ -177,10 +199,10 @@ impl DecapContext {
     }
 }
 
-/// Structure Decapsulator
-///
-/// The object oriented structure Decapsulator contains the gse memory and his trait, saves the trait of crc calculation and allows an autonomous use of the Re Use Label.
-///
+/// Object oriented structure Decapsulator to decapsulate GSE packet.
+/// 
+/// This structure contains the gse memory and his trait, saves the trait of crc calculation and allows an autonomous use of the Re Use Label.
+/// TODO add header ext infoT
 /// The memory has to implement the trait GseDecapMemory. It is required to use the decap function.
 ///
 /// The last label has to be reset by the user at the begining of each new base band frame
@@ -839,6 +861,7 @@ pub fn read_gse_header(buffer: u16) -> Option<(usize, PktType, LabelType)> {
     Some((gse_len as usize, pkt_type, label_type))
 }
 
+/// Represents the result of [`Decapsulator::get_label_or_frag_id`] function.
 #[derive(Debug, PartialEq, Eq)]
 pub enum LabelorFragId {
     Lbl(Label),
@@ -846,11 +869,19 @@ pub enum LabelorFragId {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// Errors returned by [`Decapsulator::get_label_or_frag_id`] function when it fails.
+///
+/// This enum is used as the `Err` variant in a `Result` type.
+///
+/// # Variantss
+/// * `ErrLabelReuse` - Indicates that the label read is a reUse Label.
+/// * `ErrSizeBuffer` - Indicates that the input buffer is too small to be a Gse Packet.
+/// * `ErrHeaderRead` - Indicates that the header read do not correspond to a GSE packet (probably padding).
 pub enum GetLabelorFragIdError {
     ErrLabelReuse,
     ErrSizeBuffer,
     ErrHeaderRead,
-    ErrorUnkownMandatoryHeader,
+    ErrorUnkownMandatoryHeader, // TODO unused
 }
 
 impl GetLabelorFragIdError {
@@ -866,7 +897,17 @@ impl GetLabelorFragIdError {
     }
 }
 
+
 #[derive(PartialEq, Eq, Clone)]
+#[doc(hidden)]
+/// Errors returned by [`iterate_over_extension_header`] function when it fails.
+///
+/// This enum is used as the `Err` variant in a `Result` type.
+///
+/// # Variantss
+/// * `UnknownMandatoryHeader` - Indicates the presence of an unkown mandatory header extension.
+/// * `BufferTooSmall` - Indicates that the input buffer is too small to be a Gse Packet.
+/// 
 /// Enumeration DecapError
 ///
 /// The decapsulation failed, the status return a comment about the error that occured.

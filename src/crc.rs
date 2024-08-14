@@ -1,11 +1,15 @@
 // Copyright 2023, Viveris Technologies
 // Distributed under the terms of the MIT License
 
-//! Module for Crc
+//! Module for Cyclic Redundancy Check
 //!
 //! This module contains the trait crc and it's default naive implementation.
+//! 
+//! The trait [`CrcCalculator`] declares the function [`CrcCalculator::calculate_crc32`] used to compute Crc. \
+//! [`DefaultCrc`] computes the Crc (in big endian).
 use crate::gse_standard::CRC_INIT;
 
+/// Trait defining the computation of the CRC.
 pub trait CrcCalculator {
     /// Calculate 32bit CRC for pdu, total_length, protocol_type and label
     fn calculate_crc32(
@@ -59,7 +63,7 @@ fn crc32(data: &[u8], crc: u32) -> u32 {
     });
 }
 
-/// Structure that implement the CrcCalculator trait.
+/// Implementation of the CrcCalculator trait.
 /// The function is not optimized and works in big endian.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DefaultCrc;

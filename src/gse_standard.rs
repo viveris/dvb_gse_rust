@@ -1,9 +1,9 @@
 // Copyright 2023, Viveris Technologies
 // Distributed under the terms of the MIT License
 
-//! Module for GseStandard
+//! Module for GSE standard constants
 //!
-//! This module contains the GSE standard constants
+//! This module contains the GSE standard constants, and some masks to obtain them.
 
 // Gse constant for start and end bits
 pub const COMPLETE_PKT: u16 = 0xC000;

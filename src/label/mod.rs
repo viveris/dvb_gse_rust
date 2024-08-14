@@ -3,12 +3,13 @@
 
 //! Module for label
 //!
-//! This module contains the enumerations needed to represent the labels
+//! This module contains the representation of GSE Label and the functions associated.
+//! 
 #[cfg(test)]
 mod tests;
 use crate::gse_standard::{LABEL_3_B_LEN, LABEL_6_B_LEN, LABEL_BROADCAST_LEN, LABEL_REUSE_LEN};
 
-/// Enumeration Label
+/// Represent a Label and its data
 ///
 /// Define label byte array based on the label type
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -20,7 +21,7 @@ pub enum Label {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-/// Enumeration label type
+/// Represent the type of Label
 pub enum LabelType {
     SixBytesLabel,
     ThreeBytesLabel,

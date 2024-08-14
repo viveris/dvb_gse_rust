@@ -1333,7 +1333,7 @@ fn test_decap_first_010() {
 
         pdu_len: 0,
         protocol_type,
-        label: Label::ThreeBytesLabel(*b"012"), //From last label // TODO plus propre
+        label: Label::ThreeBytesLabel(*b"012"),
     };
     let exp_decap_status = Ok(DecapStatus::FragmentedPkt(exp_metadata));
     let exp_pkt_len = PKT_LEN;

@@ -1,10 +1,20 @@
 // Copyright 2023, Viveris Technologies
 // Distributed under the terms of the MIT License
-
-//! dvb_gse_rust is a library for encapsulating gse packet from a payload and metadata in a buffer and decapsulating gse packet from a buffer in a payload and metadata.
-//! The library follows the dvb gse standards. Then, it allows the fragmentation of a pdu in different gse packet and the label re use.
+//! `dvb_gse_rust` is a library for encapsulating GSE packets from a payload and metadata into a buffer, and for decapsulating GSE packets from a buffer back into a payload and metadata.
+//! 
+//! The library adheres to the DVB-GSE standards and supports features such as Label Reuse, header extensions, and other functionalities of the GSE protocol, including fragmentation.
+//! 
+//! This library is flexible. Users can define and change the behavior of the buffer used in decapsulation and use their own CRC calculator without impacting runtime performance, thanks to Rust traits.
+//! 
+//! To customize decapsulation buffers, see the [`gse_decap::gse_decap_memory`] module. \
+//! To customize CRC calculation, see the [`crc`] module.
+//! 
+//! Encapsulation is handled by the `Encapsulator` struct. For more information, see the [`gse_encap`] module. \
+//! Decapsulation is handled by the `Decapsulator` struct. For more information, see the [`gse_decap`] module. 
+//! 
+//! # Example
 //!
-//! # Example of encapsulating and decapsulating a gse packet
+//! Here is an example of encapsulating and decapsulating a GSE packet:
 //!
 //! ```
 //! use dvb_gse_rust::gse_encap::{Encapsulator, EncapMetadata, EncapStatus};

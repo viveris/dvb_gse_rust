@@ -1,7 +1,7 @@
 // Copyright 2023, Viveris Technologies
 // Distributed under the terms of the MIT License
 
-//! Module for gse encapsulation
+//! Module for GSE encapsulation
 //!
 //! The encapsulation module follows the dvb gse standard.
 //! It supports complete packet, first fragment packet, intermediate fragment packet, end fragment packet and padding.
@@ -62,15 +62,12 @@ impl ContextFrag {
         }
     }
 
-    //getters
     pub fn frag_id(&self) -> u8 {
         self.frag_id
     }
-
     pub fn crc(&self) -> u32 {
         self.crc
     }
-
     pub fn len_pdu_frag(&self) -> u16 {
         self.len_pdu_frag
     }
@@ -94,14 +91,26 @@ impl EncapStatus {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-/// Enumeration EncapError : Define the error of the encapsulation.
-/// The encapsulation failed, the status return a comment about the error that occured.
+/// Error returned by [`Encapsulator::encap`], [`Encapsulator::encap_frag`], or [`Encapsulator::encap_ext`] functions function during failure.
+///
+/// This enum is used as the `Err` variant in a `Result` type.
 pub enum EncapError {
+    /// Indicates that the output buffer is too small to accommodate the encapsulated packet.
     ErrorSizeBuffer,
+
+    /// Indicates that the packet size exceeds the maximum allowed value for the GSE protocol (65535 bytes).
     ErrorPduLength,
+
+    /// Indicates that the provided protocol type is invalid.
     ErrorProtocolType,
+
+    /// Indicates that the provided label is a Six-Byte Label `{0, 0, 0, 0, 0, 0}`, which should only be used for padding purposes.
     ErrorInvalidLabel,
+
+    /// Indicates that [`Encapsulator::encap_ext`] was called without providing an extension. Use [`Encapsulator::encap`] in this case.
     ErrorNoExtensionFound,
+
+    /// Indicates that a final mandatory extension was provided, but the protocol type differs from the final extension ID. This extension should replace the protocol type.
     ErrorFinalMandatoryExtensionHeader,
 }
 

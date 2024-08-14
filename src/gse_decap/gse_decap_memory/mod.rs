@@ -1,6 +1,8 @@
 // Copyright 2023, Viveris Technologies
 // Distributed under the terms of the MIT License
-
+//! Module for managin GSE decapsulation memory buffer
+//!
+//! This module enables users to define their own struct for managing how fragments are stored in memory while awaiting the reception of all fragments.
 #[cfg(test)]
 mod tests;
 
@@ -8,8 +10,10 @@ use super::super::gse_decap::DecapContext;
 use std::mem;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-/// describes the possible errors.
-pub enum DecapMemoryError {
+/// Represents errors returned by functions in the [`GseDecapMemory`] trait in case of failure.
+/// 
+/// This enum is used as the `Err` variant in a `Result` type.
+pub enum DecapMemoryError { //TODO
     StorageOverflow(Box<[u8]>),
     StorageUnderflow,
     UndefinedId,
@@ -17,9 +21,14 @@ pub enum DecapMemoryError {
     MemoryCorrupted,
 }
 
+/// Represents the current state of the reconstruction process for a GSE packet from the fragments received up to the present moment.
+///
+/// This structure holds the following components:
+/// * `DecapContext`: Contains the metadata associated with the packet, which provides essential context for the reassembly process.
+/// * `Box<[u8]>`: Holds the current partial reconstruction of the packet, representing the data that has been assembled so far.
 pub type MemoryContext = (DecapContext, Box<[u8]>);
 
-/// `GseDecapMemory` is a trait that describes the function required by the decap function.
+/// Trait defining the function required by the decap memory struct.
 pub trait GseDecapMemory {
     /// Create a new empty DecapMemory
     fn new(max_frag_id: usize, max_pdu_size: usize, max_delay: usize, max_pdu_frag: usize) -> Self;
@@ -51,8 +60,8 @@ pub trait GseDecapMemory {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-/// `SimpleGseMemory` is a naive and simple implementation of the trait `GseDecapMemory`
-/// Limitations:
+/// Naive and simple implementation of the trait [`GseDecapMemory`]
+/// ### Limitations:
 /// *   The maximum number of buffer is fixed at the initialisation
 /// *   The index of the frag ids are calculted with `frag_id % max_frag_id`
 pub struct SimpleGseMemory {
