@@ -134,13 +134,17 @@ impl EncapError {
 ///
 /// When `re_use_activated` is true : the autonomous use of Re Use Label is enable.
 /// Then, if the label of the pdu is 3 or 6 Bytes and it is the same as `last_label`, the label sent in the next packet will be a Re Use Label.
-/// Else, the last label is update.
+/// Else, the last label is updated.
 ///
 /// The last label has to be reset by the user at the begining of each new base band frame.
+/// Or is optionally reset after `re_max_consecutive` Re Use Labels have been emitted, unless
+/// this attribute is set to 0 (default).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Encapsulator<C: CrcCalculator> {
     crc_calculator: C,
     re_use_activated: bool,
+    re_max_consecutive: u8,
+    re_current_consecutive: u8,
     last_label: Option<Label>,
 }
 
@@ -151,6 +155,8 @@ impl<C: CrcCalculator> Encapsulator<C> {
             last_label: None,
             crc_calculator,
             re_use_activated: true,
+            re_max_consecutive: 0,
+            re_current_consecutive: 0,
         }
     }
 
@@ -167,12 +173,52 @@ impl<C: CrcCalculator> Encapsulator<C> {
         self.last_label = None;
     }
 
-    pub fn enable_re_use_label(&mut self, enable: bool) {
-        self.re_use_activated = enable;
+    pub fn disable_re_use_label(&mut self) {
+        self.re_use_activated = false;
+        self.re_max_consecutive = 0;
+        self.re_current_consecutive = 0;
+    }
+
+    pub fn enable_re_use_label(&mut self) {
+        self.re_use_activated = true;
+        self.re_max_consecutive = 0;
+        self.re_current_consecutive = 0;
+    }
+
+    pub fn enable_re_use_label_with_max_consecutive(&mut self, max_consecutive: u8) {
+        self.re_use_activated = true;
+        self.re_max_consecutive = max_consecutive;
+        self.re_current_consecutive = 0;
     }
 
     pub fn is_enabled_re_use_label(&mut self) -> bool {
         self.re_use_activated
+    }
+
+    fn check_label_re_use(&mut self, next_label: Label) -> Label {
+        if self.re_use_activated {
+            // check label reuse
+            if Some(next_label) == self.last_label {
+                if self.re_max_consecutive == 0u8 {
+                    return Label::ReUse;
+                } else {
+                    if self.re_current_consecutive < self.re_max_consecutive {
+                        self.re_current_consecutive += 1;
+                        return Label::ReUse;
+                    } else {
+                        self.re_current_consecutive = 0;
+                    }
+                }
+            }
+
+            // update last_label
+            if next_label == Label::Broadcast {
+                self.last_label = None;
+            } else if next_label != Label::ReUse {
+                self.last_label = Some(next_label);
+            }
+        }
+        return next_label;
     }
 
     /// GSE encapsulation of a gse header and the payload in a buffer
@@ -292,21 +338,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
             return Err(EncapError::ErrorProtocolType);
         }
 
-        // label reuse
-        if self.re_use_activated {
-            // check label reuse
-            if Some(label) == self.last_label {
-                label = Label::ReUse;
-            }
-
-            // update last_label
-            if label == Label::Broadcast {
-                self.last_label = None;
-            } else if label != Label::ReUse {
-                self.last_label = Some(label);
-            }
-        }
-
+        label = self.check_label_re_use(label);
         let label_len = label.len();
         let pdu_len = pdu.len();
         let gse_len_min = pdu_len + label_len + PROTOCOL_LEN;
@@ -603,20 +635,7 @@ impl<C: CrcCalculator> Encapsulator<C> {
             return Err(EncapError::ErrorInvalidLabel);
         }
 
-        // label reuse
-        if self.re_use_activated {
-            // check label reuse
-            if Some(label) == self.last_label {
-                label = Label::ReUse;
-            }
-
-            // update last_label
-            if label == Label::Broadcast {
-                self.last_label = None;
-            } else if label != Label::ReUse {
-                self.last_label = Some(label);
-            }
-        }
+        label = self.check_label_re_use(label);
         let label_len = label.len();
         let pdu_len = pdu.len();
         let gse_len_min = pdu_len + label_len + PROTOCOL_LEN + total_len_extensions;

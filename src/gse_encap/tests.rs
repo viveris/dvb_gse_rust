@@ -283,7 +283,7 @@ fn test_encap_001() {
     let comment = "6B Label, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -299,7 +299,7 @@ fn test_encap_001() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
     test_encap!(
@@ -324,7 +324,7 @@ fn test_encap_002() {
     let comment = "6B Label, buffer as the same length as pkt";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -340,7 +340,7 @@ fn test_encap_002() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
     test_encap!(
@@ -365,7 +365,7 @@ fn test_encap_003() {
     let comment = "6B Label, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -385,7 +385,7 @@ fn test_encap_003() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
         ContextFrag {
@@ -428,7 +428,7 @@ fn test_encap_004() {
     let comment = "6B Label, fragmented pkt with pdu_len_frag = 0";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -448,7 +448,7 @@ fn test_encap_004() {
         b"",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         13,
         ContextFrag {
@@ -484,7 +484,7 @@ fn test_encap_005() {
     let comment = "6B Label, buffer too small";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -494,7 +494,7 @@ fn test_encap_005() {
     let mut buffer_in = [0; MIN_BUFFER_LEN - 1];
 
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Err(EncapError::ErrorSizeBuffer);
 
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
@@ -510,7 +510,7 @@ fn test_encap_006() {
     let comment = "3B Label, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -526,7 +526,7 @@ fn test_encap_006() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::CompletedPkt((PKT_LEN) as u16));
 
     test_encap!(
@@ -556,7 +556,7 @@ fn test_encap_007() {
     let comment = "3B Label, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -576,7 +576,7 @@ fn test_encap_007() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         (FIRST_FRAG_LEN + EXP_PDU_LEN) as u16,
         ContextFrag {
@@ -614,7 +614,7 @@ fn test_encap_008() {
     let comment = "Label Broadcast, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -630,7 +630,7 @@ fn test_encap_008() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
     test_encap!(
@@ -660,7 +660,7 @@ fn test_encap_009() {
     let comment = "Label Broadcast, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -683,7 +683,7 @@ fn test_encap_009() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         (FIRST_FRAG_LEN + EXP_PDU_LEN) as u16,
         ContextFrag {
@@ -720,7 +720,7 @@ fn test_encap_010() {
     let comment = "Label ReUse, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -736,7 +736,7 @@ fn test_encap_010() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
     test_encap!(
@@ -767,7 +767,7 @@ fn test_encap_011() {
     let comment = "Label ReUse, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -787,7 +787,7 @@ fn test_encap_011() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         (PKT_LEN - 1) as u16,
         ContextFrag {
@@ -821,7 +821,7 @@ fn test_encap_012() {
     let comment = "Label ReUse, protocol type not managed";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in: &[u8; 26] = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -831,7 +831,7 @@ fn test_encap_012() {
     let mut buffer_in = [0; 29];
 
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Err(EncapError::ErrorProtocolType);
 
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
@@ -844,7 +844,7 @@ fn test_encap_013() {
     let comment = "Label ReUse, pdu_len > 16b";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in: &[u8; 0x10000] = &[0; 0x10000];
     let payload_in = EncapMetadata {
@@ -854,7 +854,7 @@ fn test_encap_013() {
     let mut buffer_in = [0; 29];
 
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Err(EncapError::ErrorPduLength);
 
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
@@ -870,7 +870,7 @@ fn test_encap_014() {
     let comment = "6B Label, invalid label CompletePkt";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -881,7 +881,7 @@ fn test_encap_014() {
     let mut buffer_in = [0; PKT_LEN + 1];
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Err(EncapError::ErrorInvalidLabel);
 
     assert_eq!(obs_status, exp_status, "{}", comment);
@@ -896,7 +896,7 @@ fn test_encap_015() {
     let comment = "6B Label, invalid label FirstFragPkt";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let payload_in = EncapMetadata {
@@ -907,7 +907,7 @@ fn test_encap_015() {
     let mut buffer_in = [0; PKT_LEN - 1];
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(false);
+    exp_encapsulator.disable_re_use_label();
     let exp_status = Err(EncapError::ErrorInvalidLabel);
 
     assert_eq!(obs_status, exp_status, "{}", comment);
@@ -922,7 +922,7 @@ fn test_encap_016() {
     let comment = "6B Label ReUsed, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -939,7 +939,7 @@ fn test_encap_016() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -965,7 +965,7 @@ fn test_encap_017() {
     let comment = "6B Label Not ReUsed, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"543210"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -982,7 +982,7 @@ fn test_encap_017() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -1008,7 +1008,7 @@ fn test_encap_018() {
     let comment = "6B Label ReUsed, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1028,7 +1028,7 @@ fn test_encap_018() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1069,7 +1069,7 @@ fn test_encap_019() {
     let comment = "6B Label Not ReUsed, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"012"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1090,7 +1090,7 @@ fn test_encap_019() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1133,7 +1133,7 @@ fn test_encap_020() {
     let comment = "6B Label ReUsed, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"012"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1150,7 +1150,7 @@ fn test_encap_020() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"012"));
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -1176,7 +1176,7 @@ fn test_encap_021() {
     let comment = "3B Label Not ReUsed, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1193,7 +1193,7 @@ fn test_encap_021() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"012"));
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -1219,7 +1219,7 @@ fn test_encap_022() {
     let comment = "3B Label ReUsed, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"221"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1239,7 +1239,7 @@ fn test_encap_022() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"221"));
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1281,7 +1281,7 @@ fn test_encap_023() {
     let comment = "3B Label Not ReUsed, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1302,7 +1302,7 @@ fn test_encap_023() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"012"));
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1345,7 +1345,7 @@ fn test_encap_024() {
     let comment = "Label Broadcast set last_label at None, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1362,7 +1362,7 @@ fn test_encap_024() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = None;
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -1389,7 +1389,7 @@ fn test_encap_025() {
         "Label Broadcast set last_label at None, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"221"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1409,7 +1409,7 @@ fn test_encap_025() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = None;
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1451,7 +1451,7 @@ fn test_encap_026() {
     let comment = "Label ReUse dont change last label, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1468,7 +1468,7 @@ fn test_encap_026() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -1494,7 +1494,7 @@ fn test_encap_027() {
     let comment = "Label ReUse dont change last label, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"221"));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1514,7 +1514,7 @@ fn test_encap_027() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"221"));
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1556,7 +1556,7 @@ fn test_encap_028() {
     let comment = "Label ReUse dont change last label, buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = None;
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1573,7 +1573,7 @@ fn test_encap_028() {
         b"abcdefghijklmnopqrstuvwxyz",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel(*b"012345"));
     let exp_status = Ok(EncapStatus::CompletedPkt(PKT_LEN as u16));
 
@@ -1599,7 +1599,7 @@ fn test_encap_029() {
     let comment = "Label ReUse dont change last label, buffer smaller than pkt: encap first frag";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = None;
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1620,7 +1620,7 @@ fn test_encap_029() {
         b"abcdefghijklmnopqrstuv",
     );
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::ThreeBytesLabel(*b"221"));
     let exp_status = Ok(EncapStatus::FragmentedPkt(
         PKT_LEN as u16 - 1,
@@ -1662,7 +1662,7 @@ fn test_encap_030() {
     let comment = "6B Label ReUse enabled, invalid label CompletePkt";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel([0, 0, 0, 0, 0, 0]));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1674,7 +1674,7 @@ fn test_encap_030() {
     let mut buffer_in = [0; PKT_LEN + 1];
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel([0, 0, 0, 0, 0, 0]));
     let exp_status = Err(EncapError::ErrorInvalidLabel);
 
@@ -1690,7 +1690,7 @@ fn test_encap_031() {
     let comment = "6B Label ReUse enabled, invalid label FirstFragPkt";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     encapsulator.last_label = Some(Label::SixBytesLabel([0, 0, 0, 0, 0, 0]));
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
@@ -1702,7 +1702,7 @@ fn test_encap_031() {
     let mut buffer_in = [0; PKT_LEN - 1];
     let obs_status = encapsulator.encap(pdu_in, DEFAULT_FRAG_ID, payload_in, &mut buffer_in);
     let mut exp_encapsulator = Encapsulator::new(DefaultCrc {});
-    exp_encapsulator.enable_re_use_label(true);
+    exp_encapsulator.enable_re_use_label();
     exp_encapsulator.last_label = Some(Label::SixBytesLabel([0, 0, 0, 0, 0, 0]));
     let exp_status = Err(EncapError::ErrorInvalidLabel);
 
@@ -1713,7 +1713,7 @@ fn test_encap_031() {
 macro_rules! test_encap_preview {
     ($comment:expr, $pdu:expr, $payload:expr, $buffer:expr, $pkt_type:ty) => {
         let mut encapsulator = Encapsulator::new(DefaultCrc {});
-        encapsulator.enable_re_use_label(false);
+        encapsulator.disable_re_use_label();
 
         // Use the encap function
         let obs_status = encapsulator.encap($pdu, DEFAULT_FRAG_ID, $payload, &mut $buffer);
@@ -2037,7 +2037,7 @@ fn test_encap_frag_001() {
     let comment = "buffer larger than packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"----------abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2079,7 +2079,7 @@ fn test_encap_frag_002() {
     let comment = "buffer has the same length as the packet";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"----------abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2119,7 +2119,7 @@ fn test_encap_frag_003() {
     let comment = "buffer to small to contains crc";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"----------abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2165,7 +2165,7 @@ fn test_encap_frag_004() {
     let comment = "buffer to small to contains the entire pdu";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"----------abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2209,7 +2209,7 @@ fn test_encap_frag_005() {
     let comment = "buffer to small to contains a single byte of pdu";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"----------abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2232,7 +2232,7 @@ fn test_encap_frag_006() {
     let comment = "pdu already sent: end frag pkt with only crc";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2266,7 +2266,7 @@ fn test_encap_frag_007() {
     let comment = "pdu already sent: pdu smaller than pdu already sent";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     let pdu_in = b"abcdefghijklmnopqrstuvwxyz";
     let context_frag_in = ContextFrag {
@@ -2287,7 +2287,7 @@ fn test_encap_frag_007() {
 macro_rules! test_encap_frag_preview {
     ($comment:expr, $pdu:expr, $context_frag:expr, $buffer:expr, $pkt_type:ty) => {
         let mut encapsulator = Encapsulator::new(DefaultCrc {});
-        encapsulator.enable_re_use_label(false);
+        encapsulator.disable_re_use_label();
 
         // Use the encap function
         let obs_status = encapsulator.encap_frag($pdu, $context_frag, &mut $buffer);

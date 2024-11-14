@@ -118,7 +118,7 @@ fn test_encap_decap_complete_001() {
     let pdu: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let payload = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -158,7 +158,7 @@ fn test_encap_decap_complete_002() {
     let mut buffer: [u8; FIXED_HEADER_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN] = [0; 33];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, PDU_LEN);
     let pdu: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
@@ -200,7 +200,7 @@ fn test_encap_decap_complete_003() {
     let mut buffer: [u8; PKT_LEN] = [0; 33];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, PDU_LEN - 1);
     let mut storage = decapsulator.new_pdu().unwrap();
     storage.copy_from_slice(b"-------------------------");
@@ -237,7 +237,7 @@ fn test_encap_decap_complete_004() {
     let mut buffer: [u8; 1000] = [0; 1000];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, PDU_LEN);
     let pdu: &[u8; PDU_LEN] = b"";
 
@@ -280,7 +280,7 @@ fn test_encap_decap_complete_005() {
     let mut buffer: [u8; 1000] = [0; 1000];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, PDU_LEN);
     let pdu: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
@@ -314,7 +314,7 @@ fn test_encap_decap_complete_006() {
     let pdu2: &[u8; PDU_LEN] = b"zyxwvutsrqponmlkjihgfedcba";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let payload1 = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -381,7 +381,7 @@ fn test_encap_decap_complete_007() {
     let mut buffer: [u8; FIXED_HEADER_LEN + PROTOCOL_LEN + LABEL_3_B_LEN + PDU_LEN] = [0; 33];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(true);
+    encapsulator.enable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
     let pdu1: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
     let pdu2: &[u8; PDU_LEN] = b"zyxwvutsrqponmlkjihgfedcba";
@@ -502,7 +502,7 @@ fn test_encap_decap_frag_001() {
     let pdu_len = pdu.len();
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, pdu_len);
     let protocol_type = 0x0FFF;
     let label = Label::SixBytesLabel(*b"012345");
@@ -572,7 +572,7 @@ fn test_encap_decap_frag_002() {
     let pdu_len = pdu.len();
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, pdu_len);
     let protocol_type = 0x0FFF;
     let label = Label::SixBytesLabel(*b"012345");
@@ -658,7 +658,7 @@ eu amet.";
     let pdu_len = pdu.len();
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(1, pdu_len);
 
     let protocol_type = 0x8888;
@@ -860,7 +860,7 @@ fn test_encap_decap_multiple_frag_001() {
     let mut storage_buffers: Vec<Box<[u8]>> = vec![Box::new([0; 20]); 10];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(8, pdus[0].len());
 
     let encap_metadata: [EncapMetadata; 2] = [
@@ -937,7 +937,7 @@ fn test_encap_decap_multiple_frag_002() {
     let mut storage_buffers: Vec<Box<[u8]>> = vec![Box::new([0; 20]); 10];
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(8, pdus[0].len());
 
     let encap_metadata: [EncapMetadata; 2] = [
@@ -1052,7 +1052,7 @@ risus dictum imperdiet. "
     // Create a big enough memory
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(4, 1500);
 
     let encap_metadata: [EncapMetadata; 4] = [
@@ -1339,7 +1339,7 @@ fn test_encap_decap_complete_ext_001() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let metadata_in = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -1375,7 +1375,7 @@ fn test_encap_decap_complete_ext_002() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let metadata_in = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -1413,7 +1413,7 @@ fn test_encap_decap_complete_ext_003() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let metadata_in = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -1451,7 +1451,7 @@ fn test_encap_decap_complete_ext_004() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let metadata_in = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -1488,7 +1488,7 @@ fn test_encap_decap_complete_ext_005() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let metadata_in = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -1526,7 +1526,7 @@ fn test_encap_decap_complete_ext_006() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator(2, PDU_LEN);
 
     let metadata_in = EncapMetadata::new(0xFFFF, Label::SixBytesLabel(*b"012345"));
@@ -1572,7 +1572,7 @@ fn test_encap_decap_complete_ext_007() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator_signalisation(2, PDU_LEN);
     // signalisation decapsulator use the trait SignalisationMandatoryExtensionHeaderManager and knows that 0x0081 is a final mandatoy extension header with no data
 
@@ -1609,7 +1609,7 @@ fn test_encap_decap_complete_ext_008() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
     let mut decapsulator = create_decapsulator_signalisation(2, PDU_LEN);
     // signalisation decapsulator use the trait SignalisationMandatoryExtensionHeaderManager and knows that 0x0081 is a final mandatoy extension header with no data
 
@@ -1645,7 +1645,7 @@ fn test_encap_decap_complete_ext_009() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     struct CustomHeaderExtManager {}
 
@@ -1691,7 +1691,7 @@ fn test_encap_decap_complete_ext_010() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     #[allow(dead_code)]
     struct CustomHeaderExtManager {}
@@ -1730,7 +1730,7 @@ fn test_encap_decap_complete_ext_011() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     #[allow(dead_code)]
     struct CustomHeaderExtManager {}
@@ -1786,7 +1786,7 @@ fn test_encap_decap_complete_ext_012() {
     let pdu_in: &[u8; PDU_LEN] = b"abcdefghijklmnopqrstuvwxyz";
 
     let mut encapsulator = Encapsulator::new(DefaultCrc {});
-    encapsulator.enable_re_use_label(false);
+    encapsulator.disable_re_use_label();
 
     #[allow(dead_code)]
     struct CustomHeaderExtManager {}
